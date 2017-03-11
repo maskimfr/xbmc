@@ -36,6 +36,7 @@ namespace PERIPHERALS
     bool IsMuted(void) { return false; }
     void ToggleMute(void) {}
     bool ToggleDeviceState(CecStateChange mode = STATE_SWITCH_TOGGLE, bool forceType = false) { return false; }
+    bool IsActiceSource(void) {}
 
     int GetButton(void) { return 0; }
     unsigned int GetHoldTime(void) { return 0; }
