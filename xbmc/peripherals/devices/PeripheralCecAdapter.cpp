@@ -1798,7 +1798,7 @@ bool CPeripheralCecAdapter::ToggleDeviceState(CecStateChange mode /*= STATE_SWIT
   return false;
 }
 
-bool CPeripheralCecAdapter::IsActiceSource(void)
+bool CPeripheralCecAdapter::IsActiveSource(void)
 {
   if (!IsRunning())
     return false;
