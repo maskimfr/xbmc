@@ -106,6 +106,6 @@ CBuiltins::CommandMap CCECBuiltins::GetOperations() const
            {"cectogglestate",    {"Toggle state of playing device via a CEC peripheral", 0, ToggleState}},
            {"cecactivatesource", {"Wake up playing device via a CEC peripheral", 0, ActivateSource}},
            {"cecstandby",        {"Put playing device on standby via a CEC peripheral", 0, Standby}},
-           {"cecisactivesource", {"Check if Kodi is the active source", 0, Standby}},
+           {"cecisactivesource", {"Check if Kodi is the active source", 0, IsActiveSource}}
          };
 }
