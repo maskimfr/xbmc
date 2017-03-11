@@ -55,6 +55,17 @@ static int ToggleState(const std::vector<std::string>& params)
   return 0;
 }
 
+/*! \Check if Kodi is the active source.
+ *  \param params (ignored)
+ */
+static int IsActiveSource(const std::vector<std::string>& params)
+{
+  bool result;
+  CApplicationMessenger::GetInstance().SendMsg(TMSG_CECISACTIVESOURCE, 0, 0, static_cast<void*>(&result));
+
+  return 0;
+}
+
 // Note: For new Texts with comma add a "\" before!!! Is used for table text.
 //
 /// \page page_List_of_built_in_functions
@@ -81,6 +92,11 @@ static int ToggleState(const std::vector<std::string>& params)
 ///     ,
 ///     Toggle state of playing device via a CEC peripheral
 ///   }
+///   \table_row2_l{
+///     <b>`CECIsActiveSource`</b>
+///     ,
+///     Check if Kodi is the active source
+///   }
 ///  \table_end
 ///
 
@@ -89,6 +105,7 @@ CBuiltins::CommandMap CCECBuiltins::GetOperations() const
   return {
            {"cectogglestate",    {"Toggle state of playing device via a CEC peripheral", 0, ToggleState}},
            {"cecactivatesource", {"Wake up playing device via a CEC peripheral", 0, ActivateSource}},
-           {"cecstandby",        {"Put playing device on standby via a CEC peripheral", 0, Standby}}
+           {"cecstandby",        {"Put playing device on standby via a CEC peripheral", 0, Standby}},
+           {"cecisactivesource", {"Check if Kodi is the active source", 0, Standby}},
          };
 }
