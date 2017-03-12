@@ -23,7 +23,9 @@
 #include "interfaces/builtins/Builtins.h"
 #include "utils/Variant.h"
 #include "powermanagement/PowerManager.h"
+#include "peripherals/Peripherals.h"
 
+using namespace PERIPHERALS;
 using namespace JSONRPC;
 using namespace KODI::MESSAGING;
 
@@ -44,6 +46,13 @@ JSONRPC_STATUS CSystemOperations::GetProperties(const std::string &method, ITran
   result = properties;
 
   return OK;
+}
+
+JSONRPC_STATUS CSystemOperations::CECIsActiveSource(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+{
+  result = g_peripherals.IsActiveSource();
+  return OK;
+
 }
 
 JSONRPC_STATUS CSystemOperations::EjectOpticalDrive(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)

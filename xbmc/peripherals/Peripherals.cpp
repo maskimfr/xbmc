@@ -728,7 +728,7 @@ bool CPeripherals::ToggleDeviceState(CecStateChange mode /*= STATE_SWITCH_TOGGLE
   return ret;
 }
 
-bool CPeripherals::IsActiveSource(void)
+bool CPeripherals::IsActiveSource()
 {
   bool ret(false);
   PeripheralVector peripherals;

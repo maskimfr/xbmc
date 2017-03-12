@@ -1809,8 +1809,8 @@ bool CPeripheralCecAdapter::IsActiveSource(void)
   }
   else 
   {
-    CLog::Log(LOGDEBUG, "%s - waking up CEC device...", __FUNCTION__);
-    return flase;
+    CLog::Log(LOGDEBUG, "%s - CEC not active source...", __FUNCTION__);
+    return false;
   }
 
 }
