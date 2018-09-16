@@ -1761,3 +1761,19 @@ bool CPeripheralCecAdapter::ToggleDeviceState(CecStateChange mode /*= STATE_SWIT
 
   return false;
 }
+
+bool CPeripheralCecAdapter::IsActiveSource(void)
+ {
+   if (!IsRunning())
+     return false;
+   if (m_cecAdapter->IsLibCECActiveSource())
+   {
+     CLog::Log(LOGDEBUG, "%s - CEC - Active Source", __FUNCTION__);
+     return true;
+  }
+  else 
+  {
+    CLog::Log(LOGDEBUG, "%s - CEC not active source...", __FUNCTION__);
+    return false;
+  }
+}

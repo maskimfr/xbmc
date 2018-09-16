@@ -12,6 +12,7 @@
 #include "utils/Variant.h"
 #include "powermanagement/PowerManager.h"
 #include "ServiceBroker.h"
+#include "peripherals/Peripherals.h"
 
 using namespace JSONRPC;
 using namespace KODI::MESSAGING;
@@ -49,6 +50,13 @@ JSONRPC_STATUS CSystemOperations::Shutdown(const std::string &method, ITransport
   }
   else
     return FailedToExecute;
+}
+
+
+JSONRPC_STATUS CSystemOperations::CECIsActiveSource(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
+{
+  result = CServiceBroker::GetPeripherals().IsActiveSource();
+  return OK;
 }
 
 JSONRPC_STATUS CSystemOperations::Suspend(const std::string &method, ITransportLayer *transport, IClient *client, const CVariant &parameterObject, CVariant &result)
