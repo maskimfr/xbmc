@@ -743,6 +743,23 @@ bool CPeripherals::ToggleDeviceState(CecStateChange mode /*= STATE_SWITCH_TOGGLE
   return ret;
 }
 
+bool CPeripherals::IsActiveSource()
+{
+  bool ret(false);
+  PeripheralVector peripherals;
+ 
+   if (SupportsCEC() && GetPeripheralsWithFeature(peripherals, FEATURE_CEC))
+   {
+     for (auto& peripheral : peripherals)
+     {
+       std::shared_ptr<CPeripheralCecAdapter> cecDevice = std::static_pointer_cast<CPeripheralCecAdapter>(peripheral);
+       ret |= cecDevice->IsActiveSource();
+     }
+   }
+ 
+   return ret;
+}
+
 bool CPeripherals::GetNextKeypress(float frameTime, CKey &key)
 {
   PeripheralVector peripherals;
@@ -951,6 +968,11 @@ void CPeripherals::OnApplicationMessage(MESSAGING::ThreadMessage* pMsg)
   case TMSG_CECSTANDBY:
     ToggleDeviceState(STATE_STANDBY);
     break;
+
+  case TMSG_CECISACTIVESOURCE:
+    *static_cast<bool*>(pMsg->lpVoid) = IsActiveSource();
+    break; 
+
   }
 }
 

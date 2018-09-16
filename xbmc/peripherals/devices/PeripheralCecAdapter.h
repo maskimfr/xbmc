@@ -23,6 +23,7 @@ namespace PERIPHERALS
     bool IsMuted(void) { return false; }
     void ToggleMute(void) {}
     bool ToggleDeviceState(CecStateChange mode = STATE_SWITCH_TOGGLE, bool forceType = false) { return false; }
+    bool IsActiveSource(void) {}
 
     int GetButton(void) { return 0; }
     unsigned int GetHoldTime(void) { return 0; }
@@ -102,6 +103,7 @@ namespace PERIPHERALS
     void ActivateSource(void);
     void StandbyDevices(void);
     bool ToggleDeviceState(CecStateChange mode = STATE_SWITCH_TOGGLE, bool forceType = false);
+    bool IsActiveSource(void);
 
   private:
     bool InitialiseFeature(const PeripheralFeature feature) override;
