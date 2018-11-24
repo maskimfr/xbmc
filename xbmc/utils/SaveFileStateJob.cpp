@@ -7,7 +7,6 @@
  */
 
 #include "SaveFileStateJob.h"
-#include "settings/MediaSettings.h"
 #include "network/upnp/UPnP.h"
 #include "StringUtils.h"
 #include "utils/Variant.h"
@@ -25,6 +24,8 @@
 #include "xbmc/music/tags/MusicInfoTag.h"
 #include "Application.h"
 #include "ServiceBroker.h"
+#include "FileItem.h"
+#include "video/Bookmark.h"
 
 void CSaveFileState::DoWork(CFileItem& item,
                             CBookmark& bookmark,
@@ -34,6 +35,8 @@ void CSaveFileState::DoWork(CFileItem& item,
 
   if (item.HasVideoInfoTag() && StringUtils::StartsWith(item.GetVideoInfoTag()->m_strFileNameAndPath, "removable://"))
     progressTrackingFile = item.GetVideoInfoTag()->m_strFileNameAndPath; // this variable contains removable:// suffixed by disc label+uniqueid or is empty if label not uniquely identified
+  else if (item.HasVideoInfoTag() && item.IsVideoDb())
+    progressTrackingFile = item.GetVideoInfoTag()->m_strFileNameAndPath; // we need the file url of the video db item to create the bookmark
   else if (item.HasProperty("original_listitem_url"))
   {
     // only use original_listitem_url for Python, UPnP and Bluray sources

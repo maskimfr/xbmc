@@ -15,6 +15,7 @@
 #include "DVDCodecs/Overlay/DVDOverlay.h"
 #include "DVDCodecs/Overlay/DVDOverlayImage.h"
 #include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "LangInfo.h"
 #include "ServiceBroker.h"
 #include "utils/log.h"
@@ -274,7 +275,7 @@ bool CDVDInputStreamBluray::Open()
     return false;
   }
 
-  int mode = CServiceBroker::GetSettings()->GetInt(CSettings::SETTING_DISC_PLAYBACK);
+  int mode = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_DISC_PLAYBACK);
 
   if (URIUtils::HasExtension(filename, ".mpls"))
   {
@@ -429,14 +430,8 @@ void CDVDInputStreamBluray::ProcessEvent() {
 
     pid = m_event.param;
 
-    if (pid == 1)
-    {
-      m_hold = HOLD_PAUSE;
-    }
-    else
-      m_hold = HOLD_HELD; //HOLD_NONE
-
-    m_player->OnDiscNavResult(static_cast<void*>(&pid), BD_EVENT_STILL);
+    if (pid == 0)
+      m_player->OnDiscNavResult(static_cast<void*>(&pid), BD_EVENT_STILL);
     break;
 
     /* playback position */
@@ -458,11 +453,6 @@ void CDVDInputStreamBluray::ProcessEvent() {
         m_event.param);
     /* when a title ends, playlist WILL eventually change */
     FreeTitleInfo();
-    if (m_event.param == BLURAY_TITLE_TOP_MENU)
-    {
-      m_title = nullptr;
-      m_menu = false;
-    }
     break;
 
   case BD_EVENT_TITLE:
@@ -483,7 +473,6 @@ void CDVDInputStreamBluray::ProcessEvent() {
     else
       m_title = nullptr;
 
-    m_menu = false;
     break;
   }
   case BD_EVENT_PLAYLIST:
@@ -588,8 +577,7 @@ int CDVDInputStreamBluray::Read(uint8_t* buf, int buf_size)
   {
     do {
 
-      if (m_hold == HOLD_PAUSE ||
-          m_hold == HOLD_HELD)
+      if (m_hold == HOLD_HELD)
          return 0;
 
       if(  m_hold == HOLD_ERROR
@@ -741,11 +729,8 @@ void CDVDInputStreamBluray::OverlayFlush(int64_t pts)
   }
 
   m_player->OnDiscNavResult(static_cast<void*>(group), BD_EVENT_MENU_OVERLAY);
-  if (group->m_overlays.empty())
-    m_menu = false;
-  else
-    m_menu = true;
   group->Release();
+  m_menu = true;
 #endif
 }
 
@@ -1021,7 +1006,7 @@ CDVDInputStream::ENextStream CDVDInputStreamBluray::NextStream()
   while(bd_get_event(m_bd, &m_event))
     ProcessEvent();
 
-  if(m_hold == HOLD_STILL || m_hold == HOLD_PAUSE)
+  if(m_hold == HOLD_STILL)
     return NEXTSTREAM_RETRY;
 
   m_hold = HOLD_DATA;
@@ -1120,8 +1105,7 @@ void CDVDInputStreamBluray::SkipStill()
   if(m_bd == nullptr || !m_navmode)
     return;
 
-  if ( m_hold == HOLD_STILL
-    || m_hold == HOLD_PAUSE)
+  if ( m_hold == HOLD_STILL)
   {
     m_hold = HOLD_HELD;
     bd_read_skip_still(m_bd);
@@ -1139,7 +1123,7 @@ bool CDVDInputStreamBluray::HasMenu()
 
 void CDVDInputStreamBluray::SetupPlayerSettings()
 {
-  int region = CServiceBroker::GetSettings()->GetInt(CSettings::SETTING_BLURAY_PLAYERREGION);
+  int region = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_BLURAY_PLAYERREGION);
   if ( region != BLURAY_REGION_A
     && region != BLURAY_REGION_B
     && region != BLURAY_REGION_C)

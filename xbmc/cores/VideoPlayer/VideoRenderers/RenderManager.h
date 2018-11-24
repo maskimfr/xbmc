@@ -16,7 +16,6 @@
 #include "windowing/Resolution.h"
 #include "threads/CriticalSection.h"
 #include "cores/VideoSettings.h"
-#include "OverlayRenderer.h"
 #include "DebugRenderer.h"
 #include <deque>
 #include <map>
@@ -66,7 +65,7 @@ public:
   bool IsVideoLayer();
   RESOLUTION GetResolution();
   void UpdateResolution();
-  void TriggerUpdateResolution(float fps, int width, std::string &stereomode);
+  void TriggerUpdateResolution(float fps, int width, int height, std::string &stereomode);
   void SetViewMode(int iViewMode);
   void PreInit();
   void UnInit();

@@ -35,7 +35,7 @@
 #define PLAYER_TIME                  27
 #define PLAYER_TIME_REMAINING        28
 #define PLAYER_DURATION              29
-#define PLAYER_SHOWCODEC             30
+// unused 30
 #define PLAYER_SHOWINFO              31
 #define PLAYER_VOLUME                32
 #define PLAYER_MUTED                 33
@@ -266,7 +266,9 @@
 #define VIDEOPLAYER_USER_RATING       319
 #define VIDEOPLAYER_DBID              320
 
-#define RETROPLAYER_VIEWMODE          330
+#define RETROPLAYER_VIDEO_FILTER      330
+#define RETROPLAYER_STRETCH_MODE      331
+#define RETROPLAYER_VIDEO_ROTATION    332
 
 #define CONTAINER_HAS_PARENT_ITEM    341
 #define CONTAINER_CAN_FILTER         342

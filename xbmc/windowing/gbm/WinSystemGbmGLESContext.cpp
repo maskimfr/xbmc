@@ -26,7 +26,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-using namespace KODI;
+using namespace KODI::WINDOWING::GBM;
 
 CWinSystemGbmGLESContext::CWinSystemGbmGLESContext()
 : CWinSystemGbmEGLContext(EGL_PLATFORM_GBM_MESA, "EGL_MESA_platform_gbm")
@@ -53,7 +53,7 @@ bool CWinSystemGbmGLESContext::InitWindowSystem()
   }
 
   bool general, deepColor;
-  m_vaapiProxy.reset(GBM::VaapiProxyCreate());
+  m_vaapiProxy.reset(GBM::VaapiProxyCreate(m_DRM->GetRenderNodeFileDescriptor()));
   GBM::VaapiProxyConfig(m_vaapiProxy.get(), m_eglContext.GetEGLDisplay());
   GBM::VAAPIRegisterRender(m_vaapiProxy.get(), general, deepColor);
 
@@ -78,7 +78,11 @@ bool CWinSystemGbmGLESContext::SetFullScreen(bool fullScreen, RESOLUTION_INFO& r
     CreateNewWindow("", fullScreen, res);
   }
 
-  m_eglContext.SwapBuffers();
+  if (!m_eglContext.TrySwapBuffers())
+  {
+    CEGLUtils::LogError("eglSwapBuffers failed");
+    throw std::runtime_error("eglSwapBuffers failed");
+  }
 
   CWinSystemGbm::SetFullScreen(fullScreen, res, blankOtherDisplays);
   CRenderSystemGLES::ResetRenderSystem(res.iWidth, res.iHeight);
@@ -102,7 +106,13 @@ void CWinSystemGbmGLESContext::PresentRender(bool rendered, bool videoLayer)
   if (rendered || videoLayer)
   {
     if (rendered)
-      m_eglContext.SwapBuffers();
+    {
+      if (!m_eglContext.TrySwapBuffers())
+      {
+        CEGLUtils::LogError("eglSwapBuffers failed");
+        throw std::runtime_error("eglSwapBuffers failed");
+      }
+    }
     CWinSystemGbm::FlipPage(rendered, videoLayer);
   }
   else
@@ -122,10 +132,9 @@ void CWinSystemGbmGLESContext::PresentRender(bool rendered, bool videoLayer)
 
 bool CWinSystemGbmGLESContext::CreateContext()
 {
-  const EGLint contextAttribs[] = {
-    EGL_CONTEXT_CLIENT_VERSION, 2,
-    EGL_NONE
-  };
+  CEGLAttributesVec contextAttribs;
+  contextAttribs.Add({{EGL_CONTEXT_CLIENT_VERSION, 2}});
+
   if (!m_eglContext.CreateContext(contextAttribs))
   {
     CLog::Log(LOGERROR, "EGL context creation failed");

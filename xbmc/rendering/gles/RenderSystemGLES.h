@@ -13,6 +13,8 @@
 #include "utils/Color.h"
 #include "GLESShader.h"
 
+#include <array>
+
 enum ESHADERMETHOD
 {
   SM_DEFAULT,
@@ -89,15 +91,13 @@ protected:
   virtual void PresentRenderImpl(bool rendered) = 0;
   void CalculateMaxTexturesize();
 
-  int        m_iVSyncMode;
-  int        m_iVSyncErrors;
-  bool       m_bVsyncInit;
-  int        m_width;
-  int        m_height;
+  bool m_bVsyncInit{false};
+  int m_width;
+  int m_height;
 
   std::string m_RenderExtensions;
 
-  std::unique_ptr<CGLESShader*[]> m_pShader;
+  std::array<std::unique_ptr<CGLESShader>, SM_MAX> m_pShader;
   ESHADERMETHOD m_method = SM_DEFAULT;
 
   GLint      m_viewPort[4];

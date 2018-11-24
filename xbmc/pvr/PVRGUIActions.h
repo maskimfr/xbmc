@@ -306,11 +306,10 @@ namespace PVR
     bool IsRunningChannelScan() const { return m_bChannelScanRunning; }
 
     /*!
-     * @brief Open selection and progress PVR actions.
-     * @param item The selected file item for which the hook was called.
+     * @brief Select and invoke client-specific settings actions
      * @return true on success, false otherwise.
      */
-    bool ProcessMenuHooks(const CFileItemPtr &item);
+    bool ProcessSettingsMenuHooks();
 
     /*!
      * @brief Reset the TV database to it's initial state and delete all the data.
@@ -391,7 +390,7 @@ namespace PVR
     void OnPlaybackStarted(const CFileItemPtr &item);
 
     /*!
-     * @brief Inform GUI actions manager that playback of an item was stopped due to user interaction.
+     * @brief Inform GUI actions that playback of an item was stopped due to user interaction.
      * @param item The item that stopped to play.
      */
     void OnPlaybackStopped(const CFileItemPtr &item);

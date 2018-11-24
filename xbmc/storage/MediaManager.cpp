@@ -31,6 +31,7 @@
 #include "GUIUserMessages.h"
 #include "settings/MediaSourceSettings.h"
 #include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/XBMCTinyXML.h"
 #include "threads/SingleLock.h"
 #include "utils/log.h"
@@ -192,7 +193,7 @@ void CMediaManager::GetNetworkLocations(VECSOURCES &locations, bool autolocation
 #endif// HAS_FILESYSTEM_NFS
 
 #ifdef HAS_UPNP
-    if (CServiceBroker::GetSettings()->GetBool(CSettings::SETTING_SERVICES_UPNP))
+    if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_SERVICES_UPNP))
     {
       std::string strDevices = g_localizeStrings.Get(33040); //"% Devices"
       share.strPath = "upnp://";
@@ -684,27 +685,43 @@ std::vector<std::string> CMediaManager::GetDiskUsage()
   return m_platformStorage->GetDiskUsage();
 }
 
+namespace
+{
+void ShowGUINotification(CGUIDialogKaiToast::eMessageType eType, const std::string& caption, const std::string& message)
+{
+  int activeWindow = CServiceBroker::GetGUI()->GetWindowManager().GetActiveWindow();
+  if (activeWindow != WINDOW_FULLSCREEN_VIDEO &&
+      activeWindow != WINDOW_FULLSCREEN_GAME &&
+      activeWindow != WINDOW_VISUALISATION &&
+      activeWindow != WINDOW_SLIDESHOW)
+  {
+    CGUIDialogKaiToast::QueueNotification(eType, caption, message, TOAST_DISPLAY_TIME, false);
+  }
+}
+} // unnamed namespace
+
 void CMediaManager::OnStorageAdded(const std::string &label, const std::string &path)
 {
 #ifdef HAS_DVD_DRIVE
-  if (CServiceBroker::GetSettings()->GetInt(CSettings::SETTING_AUDIOCDS_AUTOACTION) != AUTOCD_NONE || CServiceBroker::GetSettings()->GetBool(CSettings::SETTING_DVDS_AUTORUN))
-    if (CServiceBroker::GetSettings()->GetInt(CSettings::SETTING_AUDIOCDS_AUTOACTION) == AUTOCD_RIP)
+  const std::shared_ptr<CSettings> settings = CServiceBroker::GetSettingsComponent()->GetSettings();
+  if (settings->GetInt(CSettings::SETTING_AUDIOCDS_AUTOACTION) != AUTOCD_NONE || settings->GetBool(CSettings::SETTING_DVDS_AUTORUN))
+    if (settings->GetInt(CSettings::SETTING_AUDIOCDS_AUTOACTION) == AUTOCD_RIP)
       CJobManager::GetInstance().AddJob(new CAutorunMediaJob(label, path), this, CJob::PRIORITY_LOW);
     else
       CJobManager::GetInstance().AddJob(new CAutorunMediaJob(label, path), this, CJob::PRIORITY_HIGH);
   else
-    CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(13021), label, TOAST_DISPLAY_TIME, false);
+    ShowGUINotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(13021), label);
 #endif
 }
 
 void CMediaManager::OnStorageSafelyRemoved(const std::string &label)
 {
-  CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(13023), label, TOAST_DISPLAY_TIME, false);
+  ShowGUINotification(CGUIDialogKaiToast::Info, g_localizeStrings.Get(13023), label);
 }
 
 void CMediaManager::OnStorageUnsafelyRemoved(const std::string &label)
 {
-  CGUIDialogKaiToast::QueueNotification(CGUIDialogKaiToast::Warning, g_localizeStrings.Get(13022), label);
+  ShowGUINotification(CGUIDialogKaiToast::Warning, g_localizeStrings.Get(13022), label);
 }
 
 CMediaManager::DiscInfo CMediaManager::GetDiscInfo(const std::string& mediaPath)

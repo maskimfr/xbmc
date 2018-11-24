@@ -39,6 +39,7 @@
 #import "platform/darwin/ios/IOSScreenManager.h"
 #include "platform/darwin/DarwinUtils.h"
 #include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #import <dlfcn.h>
 
 #define CONST_TOUCHSCREEN "Touchscreen"
@@ -70,8 +71,8 @@ std::unique_ptr<CWinSystemBase> CWinSystemBase::CreateWinSystem()
 
 int CWinSystemIOS::GetDisplayIndexFromSettings()
 {
-  std::string currentScreen = CServiceBroker::GetSettings()->GetString(CSettings::SETTING_VIDEOSCREEN_MONITOR);
-  
+  std::string currentScreen = CServiceBroker::GetSettingsComponent()->GetSettings()->GetString(CSettings::SETTING_VIDEOSCREEN_MONITOR);
+
   int screenIdx = 0;
   if (currentScreen == CONST_EXTERNAL)
   {
@@ -85,13 +86,12 @@ int CWinSystemIOS::GetDisplayIndexFromSettings()
       MoveToTouchscreen();
     }
   }
-  
+
   return screenIdx;
 }
 
 CWinSystemIOS::CWinSystemIOS() : CWinSystemBase()
 {
-  m_iVSyncErrors = 0;
   m_bIsBackgrounded = false;
   m_pDisplayLink = new CADisplayLinkWrapper;
   m_pDisplayLink->callbackClass = [[IOSDisplayLinkCallback alloc] init];
@@ -265,9 +265,9 @@ void CWinSystemIOS::UpdateResolutions()
     UpdateDesktopResolution(CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP), w, h, fps, 0);
     CDisplaySettings::GetInstance().GetResolutionInfo(RES_DESKTOP).strOutput = screenIdx == 0 ? CONST_TOUCHSCREEN : CONST_EXTERNAL;
   }
-  
+
   CDisplaySettings::GetInstance().ClearCustomResolutions();
-  
+
   //now just fill in the possible resolutions for the attached screens
   //and push to the resolution info vector
   FillInVideoModes(screenIdx);
@@ -290,7 +290,7 @@ void CWinSystemIOS::FillInVideoModes(int screenIdx)
   {
     w = mode.size.width;
     h = mode.size.height;
-    
+
     if (screenIdx == 0)
     {
       res.strOutput = CONST_TOUCHSCREEN;
@@ -299,7 +299,7 @@ void CWinSystemIOS::FillInVideoModes(int screenIdx)
     {
       res.strOutput = CONST_EXTERNAL;
     }
-    
+
     UpdateDesktopResolution(res, w, h, refreshrate, 0);
     CLog::Log(LOGNOTICE, "Found possible resolution for display %d with %d x %d\n", screenIdx, w, h);
 
@@ -419,24 +419,6 @@ void CWinSystemIOS::PresentRenderImpl(bool rendered)
   //glFlush;
   if (rendered)
     [g_xbmcController presentFramebuffer];
-}
-
-void CWinSystemIOS::SetVSyncImpl(bool enable)
-{
-  #if 0
-    // set swapinterval if possible
-    void *eglSwapInterval;
-    eglSwapInterval = dlsym( RTLD_DEFAULT, "eglSwapInterval" );
-    if ( eglSwapInterval )
-    {
-      ((void(*)(int))eglSwapInterval)( 1 ) ;
-    }
-  #endif
-  m_iVSyncMode = 10;
-}
-
-void CWinSystemIOS::ShowOSMouse(bool show)
-{
 }
 
 bool CWinSystemIOS::HasCursor()

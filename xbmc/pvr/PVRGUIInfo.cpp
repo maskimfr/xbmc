@@ -21,6 +21,7 @@
 #include "guilib/guiinfo/GUIInfoLabels.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "threads/SingleLock.h"
 #include "utils/StringUtils.h"
 
@@ -127,7 +128,7 @@ void CPVRGUIInfo::Notify(const Observable &obs, const ObservableMessage msg)
 void CPVRGUIInfo::Process(void)
 {
   unsigned int iLoop = 0;
-  int toggleInterval = g_advancedSettings.m_iPVRInfoToggleInterval / 1000;
+  int toggleInterval = CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_iPVRInfoToggleInterval / 1000;
 
   /* updated on request */
   CServiceBroker::GetPVRManager().RegisterObserver(this);
@@ -189,7 +190,7 @@ void CPVRGUIInfo::UpdateQualityData(void)
   PVR_SIGNAL_STATUS qualityInfo;
   ClearQualityInfo(qualityInfo);
 
-  if (CServiceBroker::GetSettings()->GetBool(CSettings::SETTING_PVRPLAYBACK_SIGNALQUALITY))
+  if (CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_PVRPLAYBACK_SIGNALQUALITY))
   {
     bool bIsPlayingRecording = CServiceBroker::GetPVRManager().IsPlayingRecording();
     if (!bIsPlayingRecording)
@@ -332,7 +333,7 @@ bool CPVRGUIInfo::GetListItemAndPlayerLabel(const CFileItem *item, const CGUIInf
   if (recording)
   {
     // Note: CPVRRecoding is derived from CVideoInfoTag. All base class properties will be handled
-    //       by CGUIInfoManager. Only properties introduced by CPVRRecording need to be handled here.
+    //       by CVideoGUIInfoProvider. Only properties introduced by CPVRRecording need to be handled here.
     switch (info.m_info)
     {
       case LISTITEM_DATE:
@@ -395,32 +396,13 @@ bool CPVRGUIInfo::GetListItemAndPlayerLabel(const CFileItem *item, const CGUIInf
     return false;
   }
 
-  if (item->HasPVRRadioRDSInfoTag())
-  {
-    switch (info.m_info)
-    {
-      case PLAYER_TITLE:
-        /* Load the RDS Radiotext+ if present */
-        strValue = item->GetPVRRadioRDSInfoTag()->GetTitle();
-        if (!strValue.empty())
-          return true;
-        /* If no plus present load the RDS Radiotext info line 0 if present */
-        strValue = g_application.GetAppPlayer().GetRadioText(0);
-        if (!strValue.empty())
-          return true;
-        break; // get title from epg
-      case MUSICPLAYER_CHANNEL_NAME:
-        strValue = item->GetPVRRadioRDSInfoTag()->GetProgStation();
-        if (!strValue.empty())
-          return true;
-        break; // get channel name from channel tag
-    }
-  }
-
   CPVREpgInfoTagPtr epgTag;
   CPVRChannelPtr channel;
   if (item->IsPVRChannel() || item->IsEPG() || item->IsPVRTimer())
   {
+    CPVRItem pvrItem(item);
+    channel = pvrItem.GetChannel();
+
     switch (info.m_info)
     {
       case VIDEOPLAYER_NEXT_TITLE:
@@ -439,19 +421,13 @@ bool CPVRGUIInfo::GetListItemAndPlayerLabel(const CFileItem *item, const CGUIInf
       case LISTITEM_NEXT_ENDDATE:
       case LISTITEM_NEXT_ENDTIME:
       case LISTITEM_NEXT_DURATION:
-      {
-        CPVRItem pvrItem(item);
+        // next playing event
         epgTag = pvrItem.GetNextEpgInfoTag();
-        channel = pvrItem.GetChannel();
         break;
-      }
       default:
-      {
-        CPVRItem pvrItem(item);
+        // now playing event
         epgTag = pvrItem.GetEpgInfoTag();
-        channel = pvrItem.GetChannel();
         break;
-      }
     }
 
     switch (info.m_info)
@@ -467,7 +443,7 @@ bool CPVRGUIInfo::GetListItemAndPlayerLabel(const CFileItem *item, const CGUIInf
         // associated with the epg event of a timer, if any, and not the title of the timer.
         if (epgTag)
           strValue = epgTag->Title();
-        if (strValue.empty() && !CServiceBroker::GetSettings()->GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE))
+        if (strValue.empty() && !CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE))
           strValue = g_localizeStrings.Get(19055); // no information available
         return true;
     }
@@ -605,6 +581,16 @@ bool CPVRGUIInfo::GetListItemAndPlayerLabel(const CFileItem *item, const CGUIInf
     switch (info.m_info)
     {
       case MUSICPLAYER_CHANNEL_NAME:
+      {
+        const std::shared_ptr<CPVRRadioRDSInfoTag> rdsTag = channel->GetRadioRDSInfoTag();
+        if (rdsTag)
+        {
+          strValue = rdsTag->GetProgStation();
+          if (!strValue.empty())
+            return true;
+        }
+        // fall-thru is intended
+      }
       case VIDEOPLAYER_CHANNEL_NAME:
       case LISTITEM_CHANNEL_NAME:
         strValue = channel->ChannelName();
@@ -837,22 +823,12 @@ bool CPVRGUIInfo::GetPVRLabel(const CFileItem *item, const CGUIInfo &info, std::
   return false;
 }
 
-namespace
-{
-  std::string GetEpgEventTitle(const CPVREpgInfoTagPtr& epgTag)
-  {
-    if (epgTag)
-      return epgTag->Title();
-    else if (CServiceBroker::GetSettings()->GetBool(CSettings::SETTING_EPG_HIDENOINFOAVAILABLE))
-      return std::string();
-    else
-      return g_localizeStrings.Get(19055); // no information available
-  }
-} // unnamed namespace
-
 bool CPVRGUIInfo::GetRadioRDSLabel(const CFileItem *item, const CGUIInfo &info, std::string &strValue) const
 {
-  const CPVRRadioRDSInfoTagPtr tag = item->GetPVRRadioRDSInfoTag();
+  if (!item->HasPVRChannelInfoTag())
+    return false;
+
+  const std::shared_ptr<CPVRRadioRDSInfoTag> tag = item->GetPVRChannelInfoTag()->GetRadioRDSInfoTag();
   if (tag)
   {
     switch (info.m_info)
@@ -966,6 +942,18 @@ bool CPVRGUIInfo::GetRadioRDSLabel(const CFileItem *item, const CGUIInfo &info, 
       case RDS_EMAIL_STUDIO:
         strValue = tag->GetEMailStudio();
         return true;
+      case RDS_PROG_STATION:
+        strValue = tag->GetProgStation();
+        return true;
+      case RDS_PROG_NOW:
+        strValue = tag->GetProgNow();
+        return true;
+      case RDS_PROG_NEXT:
+        strValue = tag->GetProgNext();
+        return true;
+      case RDS_AUDIO_LANG:
+        strValue = tag->GetLanguage();
+        return true;
     }
   }
 
@@ -973,46 +961,6 @@ bool CPVRGUIInfo::GetRadioRDSLabel(const CFileItem *item, const CGUIInfo &info, 
   {
     case RDS_GET_RADIOTEXT_LINE:
       strValue = g_application.GetAppPlayer().GetRadioText(info.GetData1());
-      return true;
-    case RDS_PROG_STATION:
-      if (tag)
-        strValue = tag->GetProgStation();
-      if (strValue.empty())
-      {
-        const CPVRChannelPtr channel = item->GetPVRChannelInfoTag();
-        if (channel)
-          strValue = channel->ChannelName();
-      }
-      return true;
-    case RDS_PROG_NOW:
-      if (tag)
-        strValue = tag->GetProgNow();
-      if (strValue.empty())
-      {
-        const CPVRChannelPtr channel = item->GetPVRChannelInfoTag();
-        if (channel)
-          strValue = GetEpgEventTitle(channel->GetEPGNow());
-      }
-      return true;
-    case RDS_PROG_NEXT:
-      if (tag)
-        strValue = tag->GetProgNext();
-      if (strValue.empty())
-      {
-        const CPVRChannelPtr channel = item->GetPVRChannelInfoTag();
-        if (channel)
-          strValue = GetEpgEventTitle(channel->GetEPGNext());
-      }
-      return true;
-    case RDS_AUDIO_LANG:
-      if (tag)
-        strValue = tag->GetLanguage();
-      if (strValue.empty())
-      {
-        AudioStreamInfo streamInfo;
-        g_application.GetAppPlayer().GetAudioStreamInfo(g_application.GetAppPlayer().GetAudioStream(), streamInfo);
-        strValue = streamInfo.language;
-      }
       return true;
   }
   return false;
@@ -1333,7 +1281,10 @@ bool CPVRGUIInfo::GetPVRBool(const CFileItem *item, const CGUIInfo &info, bool& 
 
 bool CPVRGUIInfo::GetRadioRDSBool(const CFileItem *item, const CGUIInfo &info, bool &bValue) const
 {
-  const CPVRRadioRDSInfoTagPtr tag = item->GetPVRRadioRDSInfoTag();
+  if (!item->HasPVRChannelInfoTag())
+    return false;
+
+  const std::shared_ptr<CPVRRadioRDSInfoTag> tag = item->GetPVRChannelInfoTag()->GetRadioRDSInfoTag();
   if (tag)
   {
     switch (info.m_info)

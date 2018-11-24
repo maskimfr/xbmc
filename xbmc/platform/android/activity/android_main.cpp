@@ -26,6 +26,7 @@
 #include "platform/android/activity/JNIXBMCNsdManagerResolveListener.h"
 #include "platform/android/activity/JNIXBMCJsonHandler.h"
 #include "platform/android/activity/JNIXBMCFile.h"
+#include "platform/android/activity/JNIXBMCDisplayManagerDisplayListener.h"
 #include "utils/StringUtils.h"
 #include "XBMCApp.h"
 
@@ -92,9 +93,6 @@ static void process_input(struct android_app* app, struct android_poll_source* s
 extern void android_main(struct android_app* state)
 {
   {
-    // make sure that the linker doesn't strip out our glue
-    app_dummy();
-
     // revector inputPollSource.process so we can shut up
     // its useless verbose logging on new events (see ouya)
     // and fix the error in handling multiple input events.
@@ -132,15 +130,17 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 
   std::string pkgRoot = CCompileInfo::GetClass();
 
-  std::string mainClass = pkgRoot + "/Main";
-  std::string bcReceiver = pkgRoot + "/XBMCBroadcastReceiver";
-  std::string settingsObserver = pkgRoot + "/XBMCSettingsContentObserver";
-  std::string inputDeviceListener = pkgRoot + "/XBMCInputDeviceListener";
+  const std::string mainClass = pkgRoot + "/Main";
+  const std::string bcReceiver = pkgRoot + "/XBMCBroadcastReceiver";
+  const std::string settingsObserver = pkgRoot + "/XBMCSettingsContentObserver";
+  const std::string inputDeviceListener = pkgRoot + "/XBMCInputDeviceListener";
 
   CJNIXBMCAudioManagerOnAudioFocusChangeListener::RegisterNatives(env);
   CJNIXBMCSurfaceTextureOnFrameAvailableListener::RegisterNatives(env);
   CJNIXBMCMainView::RegisterNatives(env);
   CJNIXBMCVideoView::RegisterNatives(env);
+  CJNIXBMCDisplayManagerDisplayListener::RegisterNatives(env);
+
   jni::CJNIXBMCNsdManagerDiscoveryListener::RegisterNatives(env);
   jni::CJNIXBMCNsdManagerRegistrationListener::RegisterNatives(env);
   jni::CJNIXBMCNsdManagerResolveListener::RegisterNatives(env);

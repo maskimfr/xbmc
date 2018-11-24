@@ -32,7 +32,17 @@ bool CWinSystemWaylandEGLContext::InitWindowSystemEGL(EGLint renderableType, EGL
     return false;
   }
 
-  if (!m_eglContext.CreatePlatformDisplay(GetConnection()->GetDisplay(), GetConnection()->GetDisplay(), renderableType, apiType))
+  if (!m_eglContext.CreatePlatformDisplay(GetConnection()->GetDisplay(), GetConnection()->GetDisplay()))
+  {
+    return false;
+  }
+
+  if (!m_eglContext.InitializeDisplay(apiType))
+  {
+    return false;
+  }
+
+  if (!m_eglContext.ChooseConfig(renderableType))
   {
     return false;
   }
@@ -114,7 +124,14 @@ void CWinSystemWaylandEGLContext::PresentFrame(bool rendered)
 
   if (rendered)
   {
-    m_eglContext.SwapBuffers();
+    if (!m_eglContext.TrySwapBuffers())
+    {
+      // For now we just hard fail if this fails
+      // Theoretically, EGL_CONTEXT_LOST could be handled, but it needs to be checked
+      // whether egl implementations actually use it (mesa does not)
+      CEGLUtils::LogError("eglSwapBuffers failed");
+      throw std::runtime_error("eglSwapBuffers failed");
+    }
     // eglSwapBuffers() (hopefully) calls commit on the surface and flushes
     // ... well mesa does anyway
   }

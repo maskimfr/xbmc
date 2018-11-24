@@ -19,6 +19,7 @@
 #include "settings/DisplaySettings.h"
 #include "settings/MediaSettings.h"
 #include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
 #include "VideoShaders/YUV2RGBShaderGL.h"
 #include "VideoShaders/VideoFilterShaderGL.h"
 #include "windowing/WinSystem.h"
@@ -32,6 +33,7 @@
 #include "utils/StringUtils.h"
 #include "RenderCapture.h"
 #include "cores/IPlayer.h"
+#include "cores/VideoPlayer/DVDCodecs/Video/DVDVideoCodec.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDCodecUtils.h"
 #include "cores/FFmpeg.h"
 
@@ -116,8 +118,8 @@ CLinuxRendererGL::CLinuxRendererGL()
   m_iFlags = 0;
   m_format = AV_PIX_FMT_NONE;
 
-  m_useDithering = CServiceBroker::GetSettings()->GetBool("videoscreen.dither");
-  m_ditherDepth = CServiceBroker::GetSettings()->GetInt("videoscreen.ditherdepth");
+  m_useDithering = CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool("videoscreen.dither");
+  m_ditherDepth = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt("videoscreen.ditherdepth");
   m_fullRange = !CServiceBroker::GetWinSystem()->UseLimitedColor();
 
   m_fbo.width = 0.0;
@@ -272,7 +274,7 @@ bool CLinuxRendererGL::ConfigChanged(const VideoPicture &picture)
   return false;
 }
 
-void CLinuxRendererGL::AddVideoPicture(const VideoPicture &picture, int index, double currentClock)
+void CLinuxRendererGL::AddVideoPicture(const VideoPicture &picture, int index)
 {
   CPictureBuffer &buf = m_buffers[index];
   if (buf.videoBuffer)
@@ -556,6 +558,9 @@ void CLinuxRendererGL::DrawBlackBars()
 
   glUniform4f(uniCol, m_clearColour / 255.0f, m_clearColour / 255.0f, m_clearColour / 255.0f, 1.0f);
 
+  int osWindowWidth = CServiceBroker::GetWinSystem()->GetGfxContext().GetWidth();
+  int osWindowHeight = CServiceBroker::GetWinSystem()->GetGfxContext().GetHeight();
+
   //top quad
   if (m_destRect.y1 > 0.0)
   {
@@ -563,10 +568,10 @@ void CLinuxRendererGL::DrawBlackBars()
     vertices[quad].x = 0.0;
     vertices[quad].y = 0.0;
     vertices[quad].z = 0;
-    vertices[quad+1].x = m_viewRect.Width();
+    vertices[quad+1].x = osWindowWidth;
     vertices[quad+1].y = 0;
     vertices[quad+1].z = 0;
-    vertices[quad+2].x = m_viewRect.Width();
+    vertices[quad+2].x = osWindowWidth;
     vertices[quad+2].y = m_destRect.y1;
     vertices[quad+2].z = 0;
     vertices[quad+3] = vertices[quad+2];
@@ -578,21 +583,21 @@ void CLinuxRendererGL::DrawBlackBars()
   }
 
   // bottom quad
-  if (m_destRect.y2 < m_viewRect.Height())
+  if (m_destRect.y2 < osWindowHeight)
   {
     GLubyte quad = count;
     vertices[quad].x = 0.0;
     vertices[quad].y = m_destRect.y2;
     vertices[quad].z = 0;
-    vertices[quad+1].x = m_viewRect.Width();
+    vertices[quad+1].x = osWindowWidth;
     vertices[quad+1].y = m_destRect.y2;
     vertices[quad+1].z = 0;
-    vertices[quad+2].x = m_viewRect.Width();
-    vertices[quad+2].y = m_viewRect.Height();
+    vertices[quad+2].x = osWindowWidth;
+    vertices[quad+2].y = osWindowHeight;
     vertices[quad+2].z = 0;
     vertices[quad+3] = vertices[quad+2];
     vertices[quad+4].x = 0;
-    vertices[quad+4].y = m_viewRect.Height();
+    vertices[quad+4].y = osWindowHeight;
     vertices[quad+4].z = 0;
     vertices[quad+5] = vertices[quad];
     count += 6;
@@ -620,16 +625,16 @@ void CLinuxRendererGL::DrawBlackBars()
   }
 
   // right quad
-  if (m_destRect.x2 < m_viewRect.Width())
+  if (m_destRect.x2 < osWindowWidth)
   {
     GLubyte quad = count;
     vertices[quad].x = m_destRect.x2;
     vertices[quad].y = m_destRect.y1;
     vertices[quad].z = 0;
-    vertices[quad+1].x = m_viewRect.Width();
+    vertices[quad+1].x = osWindowWidth;
     vertices[quad+1].y = m_destRect.y1;
     vertices[quad+1].z = 0;
-    vertices[quad+2].x = m_viewRect.Width();
+    vertices[quad+2].x = osWindowWidth;
     vertices[quad+2].y = m_destRect.y2;
     vertices[quad+2].z = 0;
     vertices[quad+3] = vertices[quad+2];
@@ -751,7 +756,7 @@ void CLinuxRendererGL::UpdateVideoFilter()
   {
     bool scaleSD = m_sourceHeight < 720 && m_sourceWidth < 1280;
     bool scaleUp = (int)m_sourceHeight < m_viewRect.Height() && (int)m_sourceWidth < m_viewRect.Width();
-    bool scaleFps = m_fps < g_advancedSettings.m_videoAutoScaleMaxFps + 0.01f;
+    bool scaleFps = m_fps < CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoAutoScaleMaxFps + 0.01f;
 
     if (Supports(VS_SCALINGMETHOD_LANCZOS3_FAST) && scaleSD && scaleUp && scaleFps)
       m_scalingMethod = VS_SCALINGMETHOD_LANCZOS3_FAST;
@@ -874,7 +879,7 @@ void CLinuxRendererGL::LoadShaders(int field)
 
   if (!LoadShadersHook())
   {
-    int requestedMethod = CServiceBroker::GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_RENDERMETHOD);
+    int requestedMethod = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_RENDERMETHOD);
     CLog::Log(LOGDEBUG, "GL: Requested render method: %d", requestedMethod);
 
     if (m_pYUVShader)
@@ -1094,7 +1099,7 @@ void CLinuxRendererGL::RenderSinglePass(int index, int field)
   if (g_application.GetAppPlayer().IsInMenu())
     m_pYUVShader->SetNonLinStretch(1.0);
   else
-    m_pYUVShader->SetNonLinStretch(pow(CDisplaySettings::GetInstance().GetPixelRatio(), g_advancedSettings.m_videoNonLinStretchRatio));
+    m_pYUVShader->SetNonLinStretch(pow(CDisplaySettings::GetInstance().GetPixelRatio(), CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoNonLinStretchRatio));
 
   if (field == FIELD_TOP)
     m_pYUVShader->SetField(1);
@@ -1460,7 +1465,7 @@ void CLinuxRendererGL::RenderFromFBO()
   if (g_application.GetAppPlayer().IsInMenu())
     m_pVideoFilterShader->SetNonLinStretch(1.0);
   else
-    m_pVideoFilterShader->SetNonLinStretch(pow(CDisplaySettings::GetInstance().GetPixelRatio(), g_advancedSettings.m_videoNonLinStretchRatio));
+    m_pVideoFilterShader->SetNonLinStretch(pow(CDisplaySettings::GetInstance().GetPixelRatio(), CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoNonLinStretchRatio));
 
   m_pVideoFilterShader->SetMatrices(glMatrixProject.Get(), glMatrixModview.Get());
   m_pVideoFilterShader->Enable();
@@ -1602,7 +1607,7 @@ void CLinuxRendererGL::RenderRGB(int index, int field)
   if (g_application.GetAppPlayer().IsInMenu())
     m_pVideoFilterShader->SetNonLinStretch(1.0);
   else
-    m_pVideoFilterShader->SetNonLinStretch(pow(CDisplaySettings::GetInstance().GetPixelRatio(), g_advancedSettings.m_videoNonLinStretchRatio));
+    m_pVideoFilterShader->SetNonLinStretch(pow(CDisplaySettings::GetInstance().GetPixelRatio(), CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoNonLinStretchRatio));
 
   m_pVideoFilterShader->SetMatrices(glMatrixProject.Get(), glMatrixModview.Get());
   m_pVideoFilterShader->Enable();
@@ -2603,7 +2608,7 @@ bool CLinuxRendererGL::Supports(ESCALINGMETHOD method)
     // if scaling is below level, avoid hq scaling
     float scaleX = fabs(((float)m_sourceWidth - m_destRect.Width())/m_sourceWidth)*100;
     float scaleY = fabs(((float)m_sourceHeight - m_destRect.Height())/m_sourceHeight)*100;
-    int minScale = CServiceBroker::GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_HQSCALERS);
+    int minScale = CServiceBroker::GetSettingsComponent()->GetSettings()->GetInt(CSettings::SETTING_VIDEOPLAYER_HQSCALERS);
     if (scaleX < minScale && scaleY < minScale)
       return false;
 
@@ -2622,7 +2627,7 @@ bool CLinuxRendererGL::Supports(ESCALINGMETHOD method)
       && method != VS_SCALINGMETHOD_LANCZOS3)
         return true;
       else
-        return g_advancedSettings.m_videoEnableHighQualityHwScalers;
+        return CServiceBroker::GetSettingsComponent()->GetAdvancedSettings()->m_videoEnableHighQualityHwScalers;
     }
   }
 

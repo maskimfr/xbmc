@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "RenderInfo.h"
-#include "windowing/Resolution.h"
 #include "utils/Geometry.h"
 #include "VideoShaders/ShaderFormats.h"
 #include "cores/IPlayer.h"
@@ -53,7 +52,7 @@ public:
   // Player functions
   virtual bool Configure(const VideoPicture &picture, float fps, unsigned int orientation) = 0;
   virtual bool IsConfigured() = 0;
-  virtual void AddVideoPicture(const VideoPicture &picture, int index, double currentClock) = 0;
+  virtual void AddVideoPicture(const VideoPicture &picture, int index) = 0;
   virtual bool IsPictureHW(const VideoPicture &picture) { return false; };
   virtual void UnInit() = 0;
   virtual bool Flush(bool saveBuffers) { return false; };

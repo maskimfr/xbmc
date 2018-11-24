@@ -21,6 +21,8 @@
 
 #include <drm_fourcc.h>
 
+using namespace KODI::WINDOWING::GBM;
+
 void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool videoLayer)
 {
   uint32_t blob_id;
@@ -50,22 +52,22 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
 
   if (rendered)
   {
-    AddProperty(m_overlay_plane, "FB_ID", fb_id);
-    AddProperty(m_overlay_plane, "CRTC_ID", m_crtc->crtc->crtc_id);
-    AddProperty(m_overlay_plane, "SRC_X", 0);
-    AddProperty(m_overlay_plane, "SRC_Y", 0);
-    AddProperty(m_overlay_plane, "SRC_W", m_width << 16);
-    AddProperty(m_overlay_plane, "SRC_H", m_height << 16);
-    AddProperty(m_overlay_plane, "CRTC_X", 0);
-    AddProperty(m_overlay_plane, "CRTC_Y", 0);
-    AddProperty(m_overlay_plane, "CRTC_W", m_mode->hdisplay);
-    AddProperty(m_overlay_plane, "CRTC_H", m_mode->vdisplay);
+    AddProperty(m_gui_plane, "FB_ID", fb_id);
+    AddProperty(m_gui_plane, "CRTC_ID", m_crtc->crtc->crtc_id);
+    AddProperty(m_gui_plane, "SRC_X", 0);
+    AddProperty(m_gui_plane, "SRC_Y", 0);
+    AddProperty(m_gui_plane, "SRC_W", m_width << 16);
+    AddProperty(m_gui_plane, "SRC_H", m_height << 16);
+    AddProperty(m_gui_plane, "CRTC_X", 0);
+    AddProperty(m_gui_plane, "CRTC_Y", 0);
+    AddProperty(m_gui_plane, "CRTC_W", m_mode->hdisplay);
+    AddProperty(m_gui_plane, "CRTC_H", m_mode->vdisplay);
   }
   else if (videoLayer && !CServiceBroker::GetGUI()->GetWindowManager().HasVisibleControls())
   {
     // disable gui plane when video layer is active and gui has no visible controls
-    AddProperty(m_overlay_plane, "FB_ID", 0);
-    AddProperty(m_overlay_plane, "CRTC_ID", 0);
+    AddProperty(m_gui_plane, "FB_ID", 0);
+    AddProperty(m_gui_plane, "CRTC_ID", 0);
   }
 
   auto ret = drmModeAtomicCommit(m_fd, m_req, flags | DRM_MODE_ATOMIC_TEST_ONLY, nullptr);
@@ -94,22 +96,14 @@ void CDRMAtomic::DrmAtomicCommit(int fb_id, int flags, bool rendered, bool video
 
 void CDRMAtomic::FlipPage(struct gbm_bo *bo, bool rendered, bool videoLayer)
 {
-  uint32_t flags = 0;
-
-  if(m_need_modeset)
-  {
-    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
-    m_need_modeset = false;
-  }
-
   struct drm_fb *drm_fb = nullptr;
 
   if (rendered)
   {
     if (videoLayer)
-      m_overlay_plane->format = DRM_FORMAT_ARGB8888;
+      m_gui_plane->SetFormat(CDRMUtils::FourCCWithAlpha(m_gui_plane->GetFormat()));
     else
-      m_overlay_plane->format = DRM_FORMAT_XRGB8888;
+      m_gui_plane->SetFormat(CDRMUtils::FourCCWithoutAlpha(m_gui_plane->GetFormat()));
 
     drm_fb = CDRMUtils::DrmFbGetFromBo(bo);
     if (!drm_fb)
@@ -117,6 +111,14 @@ void CDRMAtomic::FlipPage(struct gbm_bo *bo, bool rendered, bool videoLayer)
       CLog::Log(LOGERROR, "CDRMAtomic::%s - Failed to get a new FBO", __FUNCTION__);
       return;
     }
+  }
+
+  uint32_t flags = 0;
+
+  if (m_need_modeset)
+  {
+    flags |= DRM_MODE_ATOMIC_ALLOW_MODESET;
+    m_need_modeset = false;
   }
 
   DrmAtomicCommit(!drm_fb ? 0 : drm_fb->fb_id, flags, rendered, videoLayer);

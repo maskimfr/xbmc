@@ -34,7 +34,7 @@ case $XBMC_PLATFORM_DIR in
     ;;
 
   android)
-    DEFAULT_NDK_VERSION="16"
+    DEFAULT_NDK_VERSION="18"
     DEFAULT_NDK_API="21"
     DEFAULT_XBMC_DEPENDS_ROOT=$WORKSPACE/tools/depends/xbmc-depends
     DEFAULT_CONFIGURATION="Debug"
@@ -119,12 +119,6 @@ function pathChanged ()
   local ret
   local checkPath
   ret="0"
-  #no optims in release builds!
-  if [ "$Configuration" == "Release" ]
-  then
-    echo "1"
-    return
-  fi
 
   checkPath="$1"
   if [ -e $checkPath/$PATH_CHANGE_REV_FILENAME ]

@@ -31,10 +31,13 @@ namespace JOYSTICK
 namespace GAME
 {
   class CGameClient;
+  class CGameClientController;
   class CGameClientHardware;
   class CGameClientJoystick;
   class CGameClientKeyboard;
   class CGameClientMouse;
+  class CGameClientTopology;
+  class IGameInputCallback;
 
   class CGameClientInput : protected CGameClientSubsystem,
                            public Observer
@@ -48,16 +51,21 @@ namespace GAME
     void Initialize();
     void Deinitialize();
 
-    void Start();
+    void Start(IGameInputCallback *input);
     void Stop();
 
     // Input functions
+    bool HasFeature(const std::string &controllerId, const std::string &featureName) const;
     bool AcceptsInput() const;
+    bool InputEvent(const game_input_event &event);
 
     // Topology functions
-    const CControllerTree &GetControllerTree() const { return m_controllers; }
+    const CControllerTree &GetControllerTree() const;
     bool SupportsKeyboard() const;
     bool SupportsMouse() const;
+
+    // Agent functions
+    bool HasAgent() const;
 
     // Keyboard functions
     bool OpenKeyboard(const ControllerPtr &controller);
@@ -87,6 +95,7 @@ namespace GAME
 
     // Private input helpers
     void LoadTopology();
+    void SetControllerLayouts(const ControllerVector &controllers);
     void ProcessJoysticks();
     PortMap MapJoysticks(const PERIPHERALS::PeripheralVector &peripheralJoysticks,
                          const JoystickMap &gameClientjoysticks) const;
@@ -96,15 +105,18 @@ namespace GAME
 
     // Helper functions
     static ControllerVector GetControllers(const CGameClient &gameClient);
+    static void ActivateControllers(CControllerHub &hub);
 
     // Input properties
-    CControllerTree m_controllers;
+    IGameInputCallback *m_inputCallback = nullptr;
+    std::unique_ptr<CGameClientTopology> m_topology;
+    using ControllerLayoutMap = std::map<std::string, std::unique_ptr<CGameClientController>>;
+    ControllerLayoutMap m_controllerLayouts;
     JoystickMap m_joysticks;
     PortMap m_portMap;
     std::unique_ptr<CGameClientKeyboard> m_keyboard;
     std::unique_ptr<CGameClientMouse> m_mouse;
     std::unique_ptr<CGameClientHardware> m_hardware;
-    int m_playerLimit = -1; // No limit
   };
 } // namespace GAME
 } // namespace KODI

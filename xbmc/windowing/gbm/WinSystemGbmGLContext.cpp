@@ -19,7 +19,7 @@
 #include "platform/linux/XTimeUtils.h"
 #include "utils/log.h"
 
-using namespace KODI;
+using namespace KODI::WINDOWING::GBM;
 
 CWinSystemGbmGLContext::CWinSystemGbmGLContext()
 : CWinSystemGbmEGLContext(EGL_PLATFORM_GBM_MESA, "EGL_MESA_platform_gbm")
@@ -45,13 +45,13 @@ bool CWinSystemGbmGLContext::InitWindowSystem()
   }
 
   bool general, deepColor;
-  m_vaapiProxy.reset(GBM::VaapiProxyCreate());
-  GBM::VaapiProxyConfig(m_vaapiProxy.get(), m_eglContext.GetEGLDisplay());
-  GBM::VAAPIRegisterRender(m_vaapiProxy.get(), general, deepColor);
+  m_vaapiProxy.reset(VaapiProxyCreate(m_DRM->GetRenderNodeFileDescriptor()));
+  VaapiProxyConfig(m_vaapiProxy.get(), m_eglContext.GetEGLDisplay());
+  VAAPIRegisterRender(m_vaapiProxy.get(), general, deepColor);
 
   if (general)
   {
-    GBM::VAAPIRegister(m_vaapiProxy.get(), deepColor);
+    VAAPIRegister(m_vaapiProxy.get(), deepColor);
   }
 
   return true;
@@ -66,7 +66,11 @@ bool CWinSystemGbmGLContext::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res
     CreateNewWindow("", fullScreen, res);
   }
 
-  m_eglContext.SwapBuffers();
+  if (!m_eglContext.TrySwapBuffers())
+  {
+    CEGLUtils::LogError("eglSwapBuffers failed");
+    throw std::runtime_error("eglSwapBuffers failed");
+  }
 
   CWinSystemGbm::SetFullScreen(fullScreen, res, blankOtherDisplays);
   CRenderSystemGL::ResetRenderSystem(res.iWidth, res.iHeight);
@@ -90,7 +94,13 @@ void CWinSystemGbmGLContext::PresentRender(bool rendered, bool videoLayer)
   if (rendered || videoLayer)
   {
     if (rendered)
-      m_eglContext.SwapBuffers();
+    {
+      if (!m_eglContext.TrySwapBuffers())
+      {
+        CEGLUtils::LogError("eglSwapBuffers failed");
+        throw std::runtime_error("eglSwapBuffers failed");
+      }
+    }
     CWinSystemGbm::FlipPage(rendered, videoLayer);
   }
   else
@@ -113,19 +123,16 @@ bool CWinSystemGbmGLContext::CreateContext()
   const EGLint glMajor = 3;
   const EGLint glMinor = 2;
 
-  const EGLint contextAttribs[] = {
-    EGL_CONTEXT_MAJOR_VERSION_KHR, glMajor,
-    EGL_CONTEXT_MINOR_VERSION_KHR, glMinor,
-    EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR,
-    EGL_NONE
-  };
+  CEGLAttributesVec contextAttribs;
+  contextAttribs.Add({{EGL_CONTEXT_MAJOR_VERSION_KHR, glMajor},
+                      {EGL_CONTEXT_MINOR_VERSION_KHR, glMinor},
+                      {EGL_CONTEXT_OPENGL_PROFILE_MASK_KHR, EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT_KHR}});
 
   if (!m_eglContext.CreateContext(contextAttribs))
   {
-    const EGLint fallbackContextAttribs[] = {
-      EGL_CONTEXT_CLIENT_VERSION, 2,
-      EGL_NONE
-    };
+    CEGLAttributesVec fallbackContextAttribs;
+    fallbackContextAttribs.Add({{EGL_CONTEXT_CLIENT_VERSION, 2}});
+
     if (!m_eglContext.CreateContext(fallbackContextAttribs))
     {
       CLog::Log(LOGERROR, "EGL context creation failed");

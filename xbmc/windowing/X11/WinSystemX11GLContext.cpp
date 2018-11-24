@@ -142,6 +142,7 @@ EGLConfig CWinSystemX11GLContext::GetEGLConfig() const
 bool CWinSystemX11GLContext::SetWindow(int width, int height, bool fullscreen, const std::string &output, int *winstate)
 {
   int newwin = 0;
+
   CWinSystemX11::SetWindow(width, height, fullscreen, output, &newwin);
   if (newwin)
   {
@@ -210,13 +211,15 @@ bool CWinSystemX11GLContext::SetFullScreen(bool fullScreen, RESOLUTION_INFO& res
 
 bool CWinSystemX11GLContext::DestroyWindowSystem()
 {
-  m_pGLContext->Destroy();
+  if (m_pGLContext)
+    m_pGLContext->Destroy();
   return CWinSystemX11::DestroyWindowSystem();
 }
 
 bool CWinSystemX11GLContext::DestroyWindow()
 {
-  m_pGLContext->Detach();
+  if (m_pGLContext)
+    m_pGLContext->Detach();
   return CWinSystemX11::DestroyWindow();
 }
 
@@ -249,6 +252,11 @@ bool CWinSystemX11GLContext::RefreshGLContext(bool force)
   if (m_pGLContext)
   {
     success = m_pGLContext->Refresh(force, m_screen, m_glWindow, m_newGlContext);
+    if (!success)
+    {
+      success = m_pGLContext->CreatePB();
+      m_newGlContext = true;
+    }
     return success;
   }
 
@@ -289,6 +297,12 @@ bool CWinSystemX11GLContext::RefreshGLContext(bool force)
         if (isIntel || gli == "EGL")
           return true;
       }
+    }
+    else if (gli == "EGL_PB")
+    {
+      success = m_pGLContext->CreatePB();
+      if (success)
+        return true;
     }
   }
 

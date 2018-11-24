@@ -10,6 +10,7 @@
 
 #include "RetroPlayerAutoSave.h"
 #include "cores/RetroPlayer/guibridge/IGameCallback.h"
+#include "cores/RetroPlayer/playback/IPlaybackControl.h"
 #include "cores/IPlayer.h"
 #include "games/GameTypes.h"
 #include "guilib/DispResource.h"
@@ -35,6 +36,7 @@ namespace RETRO
   class CRetroPlayer : public IPlayer,
                        public IRenderLoop,
                        public IGameCallback,
+                       public IPlaybackCallback,
                        public IAutoSaveCallback
   {
   public:
@@ -64,9 +66,14 @@ namespace RETRO
     void FrameMove() override;
     void Render(bool clear, uint32_t alpha = 255, bool gui = true) override;
     bool IsRenderingVideo() override;
+    bool HasGameAgent() override;
 
     // Implementation of IGameCallback
     std::string GameClientID() const override;
+
+    // Implementation of IPlaybackCallback
+    void SetPlaybackSpeed(double speed) override;
+    void EnableInput(bool bEnable) override;
 
     // Implementation of IAutoSaveCallback
     bool IsAutoSaveEnabled() const override;
@@ -84,6 +91,11 @@ namespace RETRO
     // Playback functions
     void CreatePlayback(bool bRestoreState);
     void ResetPlayback();
+
+    /*!
+     * \brief Opens the OSD
+     */
+    void OpenOSD();
 
     /*!
      * \brief Closes the OSD and shows the FullscreenGame window
@@ -104,22 +116,19 @@ namespace RETRO
     // Construction parameters
     GAME::CGameServices &m_gameServices;
 
-    enum class State
-    {
-      STARTING,
-      FULLSCREEN,
-      BACKGROUND,
-    };
-
-    State                              m_state = State::STARTING;
-    double                             m_priorSpeed = 0.0f; // Speed of gameplay before entering OSD
+    // Subsystems
     std::unique_ptr<CRPProcessInfo>    m_processInfo;
     std::unique_ptr<CRPRenderManager>  m_renderManager;
     std::unique_ptr<CRPStreamManager>  m_streamManager;
     std::unique_ptr<CRetroPlayerInput> m_input;
     std::unique_ptr<IPlayback>         m_playback;
+    std::unique_ptr<IPlaybackControl> m_playbackControl;
     std::unique_ptr<CRetroPlayerAutoSave> m_autoSave;
+
+    // Game parameters
     GAME::GameClientPtr                m_gameClient;
+
+    // Synchronization parameters
     CCriticalSection                   m_mutex;
   };
 }

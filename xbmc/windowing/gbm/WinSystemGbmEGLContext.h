@@ -12,6 +12,13 @@
 #include "WinSystemGbm.h"
 #include <memory>
 
+namespace KODI
+{
+namespace WINDOWING
+{
+namespace GBM
+{
+
 class CVaapiProxy;
 
 class CWinSystemGbmEGLContext : public CWinSystemGbm
@@ -23,6 +30,7 @@ public:
   bool CreateNewWindow(const std::string& name,
                        bool fullScreen,
                        RESOLUTION_INFO& res) override;
+  bool DestroyWindow() override;
 
   EGLDisplay GetEGLDisplay() const;
   EGLSurface GetEGLSurface() const;
@@ -48,3 +56,7 @@ protected:
   };
   std::unique_ptr<CVaapiProxy, delete_CVaapiProxy> m_vaapiProxy;
 };
+
+}
+}
+}

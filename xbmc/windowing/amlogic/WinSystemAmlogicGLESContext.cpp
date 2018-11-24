@@ -24,17 +24,23 @@ bool CWinSystemAmlogicGLESContext::InitWindowSystem()
     return false;
   }
 
-  if (!m_pGLContext.CreateDisplay(m_nativeDisplay,
-                                  EGL_OPENGL_ES2_BIT,
-                                  EGL_OPENGL_ES_API))
+  if (!m_pGLContext.CreateDisplay(m_nativeDisplay))
   {
     return false;
   }
 
-  const EGLint contextAttribs[] =
+  if (!m_pGLContext.InitializeDisplay(EGL_OPENGL_ES_API))
   {
-    EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE
-  };
+    return false;
+  }
+
+  if (!m_pGLContext.ChooseConfig(EGL_OPENGL_ES2_BIT))
+  {
+    return false;
+  }
+
+  CEGLAttributesVec contextAttribs;
+  contextAttribs.Add({{EGL_CONTEXT_CLIENT_VERSION, 2}});
 
   if (!m_pGLContext.CreateContext(contextAttribs))
   {
@@ -96,10 +102,8 @@ bool CWinSystemAmlogicGLESContext::SetFullScreen(bool fullScreen, RESOLUTION_INF
 
 void CWinSystemAmlogicGLESContext::SetVSyncImpl(bool enable)
 {
-  m_iVSyncMode = enable ? 10:0;
   if (!m_pGLContext.SetVSync(enable))
   {
-    m_iVSyncMode = 0;
     CLog::Log(LOGERROR, "%s,Could not set egl vsync", __FUNCTION__);
   }
 }
@@ -117,7 +121,9 @@ void CWinSystemAmlogicGLESContext::PresentRenderImpl(bool rendered)
   if (!rendered)
     return;
 
-  m_pGLContext.SwapBuffers();
+  // Ignore errors - eglSwapBuffers() sometimes fails during modeswaps on AML,
+  // there is probably nothing we can do about it
+  m_pGLContext.TrySwapBuffers();
 }
 
 EGLDisplay CWinSystemAmlogicGLESContext::GetEGLDisplay() const

@@ -10,7 +10,6 @@
 
 #include "XBApplicationEx.h"
 
-#include "addons/AddonSystemSettings.h"
 #include "guilib/IMsgTargetCallback.h"
 #include "windowing/Resolution.h"
 #include "utils/GlobalsHandling.h"
@@ -42,7 +41,6 @@
 #include "threads/Thread.h"
 
 #include "ApplicationPlayer.h"
-#include "FileItem.h"
 
 class CAction;
 class CFileItem;
@@ -56,7 +54,7 @@ class CBookmark;
 class IActionListener;
 class CGUIComponent;
 class CAppInboundProtocol;
-class CSettings;
+class CSettingsComponent;
 
 namespace ADDON
 {
@@ -152,7 +150,6 @@ public:
 
   bool CreateGUI();
   bool InitWindow(RESOLUTION res = RES_INVALID);
-  bool DestroyWindow();
   void StartServices();
   void StopServices();
 
@@ -310,32 +307,9 @@ public:
 
   int GlobalIdleTime();
 
-  void EnablePlatformDirectories(bool enable=true)
-  {
-    m_bPlatformDirectories = enable;
-  }
-
-  bool PlatformDirectoriesEnabled()
-  {
-    return m_bPlatformDirectories;
-  }
-
-  void SetStandAlone(bool value);
-
-  bool IsStandAlone()
-  {
-    return m_bStandalone;
-  }
-
-  void SetEnableTestMode(bool value)
-  {
-    m_bTestMode = value;
-  }
-
-  bool IsEnableTestMode()
-  {
-    return m_bTestMode;
-  }
+  bool PlatformDirectoriesEnabled() { return m_bPlatformDirectories; }
+  bool IsStandAlone() { return m_bStandalone; }
+  bool IsEnableTestMode() { return m_bTestMode; }
 
   bool IsAppFocused() const { return m_AppFocused; }
 
@@ -376,6 +350,8 @@ public:
   */
   void UnlockFrameMoveGuard();
 
+  void SetRenderGUI(bool renderGUI);
+
 protected:
   bool OnSettingsSaving() const override;
   bool Load(const TiXmlNode *settings) override;
@@ -391,7 +367,6 @@ protected:
 
   // inbound protocol
   bool OnEvent(XBMC_Event& newEvent);
-  void SetRenderGUI(bool renderGUI);
 
   /*!
    \brief Delegates the action to all registered action handlers.
@@ -401,7 +376,7 @@ protected:
   bool NotifyActionListeners(const CAction &action) const;
 
   std::shared_ptr<ANNOUNCEMENT::CAnnouncementManager> m_pAnnouncementManager;
-  std::shared_ptr<CSettings> m_pSettings;
+  std::unique_ptr<CSettingsComponent> m_pSettingsComponent;
   std::unique_ptr<CGUIComponent> m_pGUI;
   std::unique_ptr<CWinSystemBase> m_pWinSystem;
   std::unique_ptr<ActiveAE::CActiveAE> m_pActiveAE;
@@ -482,10 +457,6 @@ protected:
   bool PlayStack(CFileItem& item, bool bRestart);
 
   float NavigationIdleTime();
-  bool InitDirectoriesLinux();
-  bool InitDirectoriesOSX();
-  bool InitDirectoriesWin32();
-  void CreateUserDirs() const;
   void HandlePortEvents();
 
   /*! \brief Helper method to determine how to handle TMSG_SHUTDOWN
