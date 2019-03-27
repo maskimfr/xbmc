@@ -29,6 +29,7 @@
 
 #include "XBDateTime.h"
 #include "addons/kodi-addon-dev-kit/include/kodi/xbmc_pvr_types.h"
+#include "threads/SystemClock.h"
 #include "video/VideoInfoTag.h"
 
 #include "pvr/PVRTypes.h"
@@ -92,11 +93,6 @@ namespace PVR
      * @return True if it was deleted successfully, false otherwise.
      */
     bool Delete(void);
-
-    /*!
-     * @brief Called when this recording has been deleted
-     */
-    void OnDelete(void);
 
     /*!
      * @brief Undelete this recording on the client (if supported).
@@ -280,6 +276,12 @@ namespace PVR
     bool IsInProgress() const;
 
     /*!
+     * @brief return the timer for an in-progress recording, if any
+     * @return the timer if the recording is in progress, nullptr otherwise
+     */
+    std::shared_ptr<CPVRTimerInfoTag> GetRecordingTimer() const;
+
+    /*!
     * @brief set the genre for this recording.
     * @param iGenreType The genre type ID. If set to EPG_GENRE_USE_STRING, set genre to the value provided with strGenre. Otherwise, compile the genre string from the values given by iGenreType and iGenreSubType
     * @param iGenreSubType The genre subtype ID
@@ -320,6 +322,7 @@ namespace PVR
     bool         m_bRadio;        /*!< radio or tv recording */
     int          m_iGenreType = 0;    /*!< genre type */
     int          m_iGenreSubType = 0; /*!< genre subtype */
+    mutable XbmcThreads::EndTime m_resumePointRefetchTimeout;
 
     void UpdatePath(void);
   };

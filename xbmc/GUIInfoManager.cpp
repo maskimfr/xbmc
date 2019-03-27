@@ -1000,6 +1000,14 @@ const infomap weather[] =        {{ "isfetched",        WEATHER_IS_FETCHED },
 ///     @return **True** if there is a CD or DVD in the DVD-ROM drive.
 ///     <p>
 ///   }
+///   \table_row3{   <b>`System.HasMediaAudioCD`</b>,
+///                  \anchor System_HasMediaAudioCD
+///                  _boolean_,
+///     @return **True** if there is an audio CD in the optical drive. **False** if no drive available\, empty drive or other medium.
+///   <p><hr>
+///   @skinning_v18 **[New Boolean Condition]** \link System_HasMediaAudioCD `System.HasMediaAudioCD` \endlink
+///   <p>
+///   }
 ///   \table_row3{   <b>`System.DVDReady`</b>,
 ///                  \anchor System_DVDReady
 ///                  _boolean_,
@@ -1581,6 +1589,7 @@ const infomap weather[] =        {{ "isfetched",        WEATHER_IS_FETCHED },
 ///   }
 const infomap system_labels[] =  {{ "hasnetwork",       SYSTEM_ETHERNET_LINK_ACTIVE },
                                   { "hasmediadvd",      SYSTEM_MEDIA_DVD },
+                                  { "hasmediaaudiocd",  SYSTEM_MEDIA_AUDIO_CD },
                                   { "dvdready",         SYSTEM_DVDREADY },
                                   { "trayopen",         SYSTEM_TRAYOPEN },
                                   { "haslocks",         SYSTEM_HASLOCKS },
@@ -2495,6 +2504,8 @@ const infomap musicplayer[] =    {{ "title",            MUSICPLAYER_TITLE },
                                   { "votes",            MUSICPLAYER_VOTES },
                                   { "comment",          MUSICPLAYER_COMMENT },
                                   { "mood",             MUSICPLAYER_MOOD },
+                                  { "contributors",     MUSICPLAYER_CONTRIBUTORS },
+                                  { "contributorandrole", MUSICPLAYER_CONTRIBUTOR_AND_ROLE },
                                   { "lyrics",           MUSICPLAYER_LYRICS },
                                   { "playlistplaying",  MUSICPLAYER_PLAYLISTPLAYING },
                                   { "exists",           MUSICPLAYER_EXISTS },
@@ -5143,6 +5154,25 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///     @return The end date of the next item (PVR).
 ///     <p>
 ///   }
+///   \table_row3{   <b>`ListItem.NextDuration`</b>,
+///                  \anchor ListItem_NextDuration
+///                  _string_,
+///     @return The duration of the next item (PVR) in the format <b>hh:mm:ss</b>.
+///     @note <b>hh:</b> will be omitted if hours value is zero.
+///     <p><hr>
+///     @skinning_v18 **[New Infolabel]** \link ListItem_NextDuration `ListItem.NextDuration`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`ListItem.NextDuration(format)`</b>,
+///                  \anchor ListItem_NextDuration_format
+///                  _string_,
+///     @return The duration of the next item (PVR) in different formats.
+///     @param format [opt] The format of the return time value.
+///     See \ref TIME_FORMAT for the list of possible values.
+///     <p><hr>
+///     @skinning_v18 **[New Infolabel]** \link ListItem_NextDuration_format `ListItem.NextDuration(format)`\endlink
+///     <p>
+///   }
 ///   \table_row3{   <b>`ListItem.ChannelGroup`</b>,
 ///                  \anchor ListItem_ChannelGroup
 ///                  _string_,
@@ -5590,6 +5620,12 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///     @skinning_v18 **[New Infolabel]** \link ListItem_Property_Game_VideoRotation `ListItem.Property(Game.VideoRotation)`\endlink
 ///     <p>  
 ///   }
+///   \table_row3{   <b>`ListItem.ParentalRating`</b>,
+///                  \anchor ListItem_ParentalRating
+///                  _string_,
+///     @return The parental rating of the list item (PVR).
+///     <p>
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
@@ -5731,6 +5767,7 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "nextendtime",      LISTITEM_NEXT_ENDTIME },
                                   { "nextstartdate",    LISTITEM_NEXT_STARTDATE },
                                   { "nextenddate",      LISTITEM_NEXT_ENDDATE },
+                                  { "nextduration",     LISTITEM_NEXT_DURATION },
                                   { "channelname",      LISTITEM_CHANNEL_NAME },
                                   { "channelnumberlabel", LISTITEM_CHANNEL_NUMBER },
                                   { "channelgroup",     LISTITEM_CHANNEL_GROUP },
@@ -5774,6 +5811,7 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "expirationtime",   LISTITEM_EXPIRATION_TIME },
                                   { "art",              LISTITEM_ART },
                                   { "property",         LISTITEM_PROPERTY },
+                                  { "parentalrating",   LISTITEM_PARENTAL_RATING }
 };
 
 /// \page modules__infolabels_boolean_conditions
@@ -6033,7 +6071,7 @@ const infomap skin_labels[] =    {{ "currenttheme",      SKIN_THEME },
 ///     to make it easier for skins to work with custom icon sets\, it now will return the filename only
 ///     i.e. 28.png
 ///     @skinning_v13 **[Infolabel Updated]** \link Window_Weather_Property `Window(Weather).Property(property)`\endlink
-///     added `WeatherProviderLogo` propertu - weather provider logo (for weather addons that support it).
+///     added `WeatherProviderLogo` property - weather provider logo (for weather addons that support it).
 ///     <p>
 ///   }
 /// \table_end
@@ -6694,7 +6732,15 @@ const infomap playlist[] =       {{ "length",           PLAYLIST_LENGTH },
 ///     @skinning_v18 **[New Infolabel]** \link PVR_TimeshiftProgressBufferEnd `PVR.TimeshiftProgressBufferEnd`\endlink
 ///     <p>
 ///   }
-/// 
+///   \table_row3{   <b>`PVR.EpgEventIcon`</b>,
+///                  \anchor PVR_EpgEventIcon
+///                  _string_,
+///     @return The icon of the currently playing epg event\, if any.
+///     <p><hr>
+///     @skinning_v18 **[New Infolabel]** \link PVR_EpgEventIcon `PVR_EpgEventIcon`\endlink
+///     <p>
+///   }
+///
 const infomap pvr[] =            {{ "isrecording",              PVR_IS_RECORDING },
                                   { "hastimer",                 PVR_HAS_TIMER },
                                   { "hastvchannels",            PVR_HAS_TV_CHANNELS },
@@ -6770,17 +6816,10 @@ const infomap pvr[] =            {{ "isrecording",              PVR_IS_RECORDING
                                   { "timeshiftprogressepgstart",  PVR_TIMESHIFT_PROGRESS_EPG_START },
                                   { "timeshiftprogressepgend",    PVR_TIMESHIFT_PROGRESS_EPG_END },
                                   { "timeshiftprogressbufferstart", PVR_TIMESHIFT_PROGRESS_BUFFER_START },
-                                  { "timeshiftprogressbufferend", PVR_TIMESHIFT_PROGRESS_BUFFER_END }};
+                                  { "timeshiftprogressbufferend", PVR_TIMESHIFT_PROGRESS_BUFFER_END },
+                                  { "epgeventicon",               PVR_EPG_EVENT_ICON }};
 
 /// \page modules__infolabels_boolean_conditions
-///   \table_row3{   <b>`PVR.EpgEventIcon`</b>,
-///                  \anchor PVR_EpgEventIcon
-///                  _string_,
-///     @return The icon of the currently playing epg event\, if any.
-///     <p><hr>
-///     @skinning_v18 **[New Infolabel]** \link PVR_EpgEventIcon `PVR_EpgEventIcon`\endlink
-///     <p>  
-///   }
 ///   \table_row3{   <b>`PVR.EpgEventDuration`</b>,
 ///                  \anchor PVR_EpgEventDuration
 ///                  _string_,
@@ -6994,8 +7033,7 @@ const infomap pvr[] =            {{ "isrecording",              PVR_IS_RECORDING
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
-const infomap pvr_times[] =      {{ "epgeventicon",           PVR_EPG_EVENT_ICON },
-                                  { "epgeventduration",       PVR_EPG_EVENT_DURATION },
+const infomap pvr_times[] =      {{ "epgeventduration",       PVR_EPG_EVENT_DURATION },
                                   { "epgeventelapsedtime",    PVR_EPG_EVENT_ELAPSED_TIME },
                                   { "epgeventremainingtime",  PVR_EPG_EVENT_REMAINING_TIME },
                                   { "epgeventfinishtime",     PVR_EPG_EVENT_FINISH_TIME },
@@ -9052,7 +9090,7 @@ int CGUIInfoManager::TranslateListItem(const Property& cat, const Property& prop
     {
       data3 = prop.param();
     }
-    else if (prop.name == "duration")
+    else if (prop.name == "duration" || prop.name == "nextduration")
     {
       data4 = TranslateTimeFormat(prop.param());
     }

@@ -201,6 +201,7 @@ const std::string CSettings::SETTING_PVRMANAGER_GROUPMANAGER = "pvrmanager.group
 const std::string CSettings::SETTING_PVRMANAGER_CHANNELSCAN = "pvrmanager.channelscan";
 const std::string CSettings::SETTING_PVRMANAGER_RESETDB = "pvrmanager.resetdb";
 const std::string CSettings::SETTING_PVRMENU_DISPLAYCHANNELINFO = "pvrmenu.displaychannelinfo";
+const std::string CSettings::SETTING_PVRMENU_CLOSECHANNELOSDONSWITCH = "pvrmenu.closechannelosdonswitch";
 const std::string CSettings::SETTING_PVRMENU_ICONPATH = "pvrmenu.iconpath";
 const std::string CSettings::SETTING_PVRMENU_SEARCHICONS = "pvrmenu.searchicons";
 const std::string CSettings::SETTING_EPG_PAST_DAYSTODISPLAY = "epg.pastdaystodisplay";
@@ -833,6 +834,7 @@ void CSettings::InitializeISettingCallbacks()
   settingSet.insert(CSettings::SETTING_VIDEOLIBRARY_CLEANUP);
   settingSet.insert(CSettings::SETTING_VIDEOLIBRARY_IMPORT);
   settingSet.insert(CSettings::SETTING_VIDEOLIBRARY_EXPORT);
+  settingSet.insert(CSettings::SETTING_VIDEOLIBRARY_SHOWUNWATCHEDPLOTS);
   GetSettingsManager()->RegisterCallback(&CMediaSettings::GetInstance(), settingSet);
 
   settingSet.clear();
@@ -843,6 +845,7 @@ void CSettings::InitializeISettingCallbacks()
   settingSet.insert(CSettings::SETTING_VIDEOSCREEN_PREFEREDSTEREOSCOPICMODE);
   settingSet.insert(CSettings::SETTING_VIDEOSCREEN_3DLUT);
   settingSet.insert(CSettings::SETTING_VIDEOSCREEN_DISPLAYPROFILE);
+  settingSet.insert(CSettings::SETTING_VIDEOSCREEN_BLANKDISPLAYS);
   GetSettingsManager()->RegisterCallback(&CDisplaySettings::GetInstance(), settingSet);
 
   settingSet.clear();

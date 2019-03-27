@@ -171,33 +171,21 @@ jni::CJNIAudioTrack *CAESinkAUDIOTRACK::CreateAudioTrack(int stream, int sampleR
 
   try
   {
-    if (CJNIBase::GetSDKVersion() >= 21)
-    {
-      CJNIAudioAttributesBuilder attrBuilder;
-      attrBuilder.setUsage(CJNIAudioAttributes::USAGE_MEDIA);
-      attrBuilder.setContentType(CJNIAudioAttributes::CONTENT_TYPE_MUSIC);
-      attrBuilder.setLegacyStreamType(CJNIAudioManager::STREAM_MUSIC);
+    CJNIAudioAttributesBuilder attrBuilder;
+    attrBuilder.setUsage(CJNIAudioAttributes::USAGE_MEDIA);
+    attrBuilder.setContentType(CJNIAudioAttributes::CONTENT_TYPE_MUSIC);
+    attrBuilder.setLegacyStreamType(CJNIAudioManager::STREAM_MUSIC);
 
-      CJNIAudioFormatBuilder fmtBuilder;
-      fmtBuilder.setChannelMask(channelMask);
-      fmtBuilder.setEncoding(encoding);
-      fmtBuilder.setSampleRate(sampleRate);
+    CJNIAudioFormatBuilder fmtBuilder;
+    fmtBuilder.setChannelMask(channelMask);
+    fmtBuilder.setEncoding(encoding);
+    fmtBuilder.setSampleRate(sampleRate);
 
-      jniAt = new CJNIAudioTrack(attrBuilder.build(),
-                                 fmtBuilder.build(),
-                                 bufferSize,
-                                 CJNIAudioTrack::MODE_STREAM,
-                                 CJNIAudioManager::AUDIO_SESSION_ID_GENERATE);
-    }
-    else
-    {
-      jniAt = new CJNIAudioTrack(stream,
-                                 sampleRate,
-                                 channelMask,
-                                 encoding,
-                                 bufferSize,
-                                 CJNIAudioTrack::MODE_STREAM);
-    }
+    jniAt = new CJNIAudioTrack(attrBuilder.build(),
+                               fmtBuilder.build(),
+                               bufferSize,
+                               CJNIAudioTrack::MODE_STREAM,
+                               CJNIAudioManager::AUDIO_SESSION_ID_GENERATE);
   }
   catch (const std::invalid_argument& e)
   {
@@ -302,7 +290,7 @@ bool CAESinkAUDIOTRACK::VerifySinkConfiguration(int sampleRate, int channelMask,
     jniAt->release();
     delete jniAt;
   }
-
+  usleep(50 * 1000); // Enumeration only, reduce pressure while starting
   return success;
 }
 
@@ -587,6 +575,7 @@ void CAESinkAUDIOTRACK::Deinitialize()
   if (!m_at_jni)
     return;
 
+  uint64_t before = CurrentHostCounter();
   if (IsInitialized())
   {
     m_at_jni->stop();
@@ -603,6 +592,14 @@ void CAESinkAUDIOTRACK::Deinitialize()
 
   delete m_at_jni;
   m_at_jni = NULL;
+  uint64_t gone = CurrentHostCounter() - before;
+  uint64_t delta_ms = 1000 * gone / CurrentHostFrequency();
+  int64_t diff = m_audiotrackbuffer_sec * 1000 - delta_ms;
+  if (diff > 0)
+  {
+    CLog::Log(LOGDEBUG, "Flushing might not be properly implemented, sleeping: %d ms", diff);
+    usleep(diff * 1000);
+  }
 }
 
 bool CAESinkAUDIOTRACK::IsInitialized()

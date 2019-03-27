@@ -22,7 +22,7 @@
 #include "windowing/GraphicContext.h"
 
 extern "C" {
-#include "libavutil/mastering_display_metadata.h"
+#include <libavutil/mastering_display_metadata.h>
 }
 
 class CRenderCapture;
@@ -201,6 +201,7 @@ protected:
   bool m_fullRange;
   AVColorPrimaries m_srcPrimaries;
   bool m_toneMap = false;
+  unsigned char* m_planeBuffer = nullptr;
 
   // clear colour for "black" bars
   float m_clearColour{0.0f};
