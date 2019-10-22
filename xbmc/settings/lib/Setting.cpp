@@ -6,16 +6,17 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include <sstream>
-#include <algorithm>
-
 #include "Setting.h"
+
 #include "SettingDefinitions.h"
 #include "SettingsManager.h"
-#include "utils/log.h"
 #include "utils/StringUtils.h"
 #include "utils/XBMCTinyXML.h"
 #include "utils/XMLUtils.h"
+#include "utils/log.h"
+
+#include <algorithm>
+#include <sstream>
 
 template<typename TKey, typename TValue>
 bool CheckSettingOptionsValidity(const TValue& value, const std::vector<std::pair<TKey, TValue>>& options)
@@ -27,6 +28,41 @@ bool CheckSettingOptionsValidity(const TValue& value, const std::vector<std::pai
   }
 
   return false;
+}
+
+template<typename TKey, typename TValue>
+bool CheckSettingOptionsValidity(const TValue& value, const std::vector<TKey>& options)
+{
+  for (auto it : options)
+  {
+    if (it.value == value)
+      return true;
+  }
+
+  return false;
+}
+
+bool DeserializeOptionsSort(const TiXmlElement* optionsElement, SettingOptionsSort& optionsSort)
+{
+  optionsSort = SettingOptionsSort::NoSorting;
+
+  std::string sort;
+  if (optionsElement->QueryStringAttribute("sort", &sort) != TIXML_SUCCESS)
+    return true;
+
+  if (StringUtils::EqualsNoCase(sort, "false") || StringUtils::EqualsNoCase(sort, "off") ||
+    StringUtils::EqualsNoCase(sort, "no") || StringUtils::EqualsNoCase(sort, "disabled"))
+    optionsSort = SettingOptionsSort::NoSorting;
+  else if (StringUtils::EqualsNoCase(sort, "asc") || StringUtils::EqualsNoCase(sort, "ascending") ||
+    StringUtils::EqualsNoCase(sort, "true") || StringUtils::EqualsNoCase(sort, "on") ||
+    StringUtils::EqualsNoCase(sort, "yes") || StringUtils::EqualsNoCase(sort, "enabled"))
+    optionsSort = SettingOptionsSort::Ascending;
+  else if (StringUtils::EqualsNoCase(sort, "desc") || StringUtils::EqualsNoCase(sort, "descending"))
+    optionsSort = SettingOptionsSort::Descending;
+  else
+    return false;
+
+  return true;
 }
 
 CSetting::CSetting(const std::string &id, CSettingsManager *settingsManager /* = nullptr */)
@@ -751,9 +787,12 @@ bool CSettingInt::Deserialize(const TiXmlNode *node, bool update /* = false */)
   if (constraints != nullptr)
   {
     // get the entries
-    auto options = constraints->FirstChild(SETTING_XML_ELM_OPTIONS);
+    auto options = constraints->FirstChildElement(SETTING_XML_ELM_OPTIONS);
     if (options != nullptr && options->FirstChild() != nullptr)
     {
+      if (!DeserializeOptionsSort(options, m_optionsSort))
+        CLog::Log(LOGWARNING, "CSettingInt: invalid \"sort\" attribute of <" SETTING_XML_ELM_OPTIONS "> for \"%s\"", m_id.c_str());
+
       if (options->FirstChild()->Type() == TiXmlNode::TINYXML_TEXT)
       {
         m_optionsFillerName = options->FirstChild()->ValueStr();
@@ -923,8 +962,8 @@ IntegerSettingOptions CSettingInt::UpdateDynamicOptions()
   {
     for (size_t index = 0; index < options.size(); index++)
     {
-      if (options[index].first.compare(m_dynamicOptions[index].first) != 0 ||
-          options[index].second != m_dynamicOptions[index].second)
+      if (options[index].label.compare(m_dynamicOptions[index].label) != 0 ||
+          options[index].value != m_dynamicOptions[index].value)
       {
         changed = true;
         break;
@@ -1182,9 +1221,12 @@ bool CSettingString::Deserialize(const TiXmlNode *node, bool update /* = false *
     XMLUtils::GetBoolean(constraints, SETTING_XML_ELM_ALLOWEMPTY, m_allowEmpty);
 
     // get the entries
-    auto options = constraints->FirstChild(SETTING_XML_ELM_OPTIONS);
+    auto options = constraints->FirstChildElement(SETTING_XML_ELM_OPTIONS);
     if (options != nullptr && options->FirstChild() != nullptr)
     {
+      if (!DeserializeOptionsSort(options, m_optionsSort))
+        CLog::Log(LOGWARNING, "CSettingInt: invalid \"sort\" attribute of <" SETTING_XML_ELM_OPTIONS "> for \"%s\"", m_id.c_str());
+
       if (options->FirstChild()->Type() == TiXmlNode::TINYXML_TEXT)
       {
         m_optionsFillerName = options->FirstChild()->ValueStr();
@@ -1204,6 +1246,15 @@ bool CSettingString::Deserialize(const TiXmlNode *node, bool update /* = false *
           {
             entry.second = optionElement->FirstChild()->Value();
             m_translatableOptions.push_back(entry);
+          }
+          else
+          {
+            const std::string value = optionElement->FirstChild()->Value();
+            // if a specific "label" attribute is present use it otherwise use the value as label
+            std::string label = value;
+            optionElement->QueryStringAttribute(SETTING_XML_ATTR_LABEL, &label);
+
+            m_options.emplace_back(label, value);
           }
 
           optionElement = optionElement->NextSiblingElement(SETTING_XML_ELM_OPTION);
@@ -1328,8 +1379,8 @@ StringSettingOptions CSettingString::UpdateDynamicOptions()
   {
     for (size_t index = 0; index < options.size(); index++)
     {
-      if (options[index].first.compare(m_dynamicOptions[index].first) != 0 ||
-          options[index].second.compare(m_dynamicOptions[index].second) != 0)
+      if (options[index].label.compare(m_dynamicOptions[index].label) != 0 ||
+          options[index].value.compare(m_dynamicOptions[index].value) != 0)
       {
         changed = true;
         break;

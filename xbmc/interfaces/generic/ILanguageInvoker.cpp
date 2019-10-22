@@ -6,11 +6,12 @@
  *  See LICENSES/README.md for more information.
  */
 
+#include "ILanguageInvoker.h"
+
+#include "interfaces/generic/ILanguageInvocationHandler.h"
+
 #include <string>
 #include <vector>
-
-#include "ILanguageInvoker.h"
-#include "interfaces/generic/ILanguageInvocationHandler.h"
 
 ILanguageInvoker::ILanguageInvoker(ILanguageInvocationHandler *invocationHandler)
   : m_id(-1),
@@ -35,7 +36,7 @@ bool ILanguageInvoker::Stop(bool abort /* = false */)
 
 bool ILanguageInvoker::IsActive() const
 {
-  return GetState() > InvokerStateUninitialized && GetState() < InvokerStateScriptDone;
+  return GetState() > InvokerStateUninitialized && GetState() < InvokerStateDone;
 }
 
 bool ILanguageInvoker::IsRunning() const
@@ -71,13 +72,13 @@ void ILanguageInvoker::onAbortRequested()
 void ILanguageInvoker::onExecutionFailed()
 {
   if (m_invocationHandler)
-    m_invocationHandler->OnExecutionEnded(this);
+    m_invocationHandler->OnScriptEnded(this);
 }
 
 void ILanguageInvoker::onExecutionDone()
 {
   if (m_invocationHandler)
-    m_invocationHandler->OnExecutionEnded(this);
+    m_invocationHandler->OnScriptEnded(this);
 }
 
 void ILanguageInvoker::onExecutionFinalized()

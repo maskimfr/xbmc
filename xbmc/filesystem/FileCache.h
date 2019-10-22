@@ -8,12 +8,14 @@
 
 #pragma once
 
-#include "IFile.h"
 #include "CacheStrategy.h"
-#include "threads/CriticalSection.h"
 #include "File.h"
+#include "IFile.h"
+#include "threads/CriticalSection.h"
 #include "threads/Thread.h"
+
 #include <atomic>
+#include <memory>
 
 namespace XFILE
 {
@@ -22,10 +24,7 @@ namespace XFILE
   {
   public:
     explicit CFileCache(const unsigned int flags);
-    CFileCache(CCacheStrategy *pCache, bool bDeleteCache = true);
     ~CFileCache() override;
-
-    void SetCacheStrategy(CCacheStrategy *pCache, bool bDeleteCache = true);
 
     // CThread methods
     void Process() override;
@@ -50,14 +49,13 @@ namespace XFILE
 
     const std::string GetProperty(XFILE::FileProperty type, const std::string &name = "") const override;
 
-    virtual const std::vector<std::string> GetPropertyValues(XFILE::FileProperty type, const std::string &name = "") const override
+    const std::vector<std::string> GetPropertyValues(XFILE::FileProperty type, const std::string& name = "") const override
     {
       return std::vector<std::string>();
     }
 
   private:
-    CCacheStrategy *m_pCache;
-    bool m_bDeleteCache;
+    std::unique_ptr<CCacheStrategy> m_pCache;
     int m_seekPossible;
     CFile m_source;
     std::string m_sourcePath;

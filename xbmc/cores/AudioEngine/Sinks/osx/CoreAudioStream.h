@@ -8,14 +8,13 @@
 
 #pragma once
 
-#if defined(TARGET_DARWIN_OSX)
-
 #include "threads/Event.h"
-#include <CoreAudio/CoreAudio.h>
-#include <IOKit/audio/IOAudioTypes.h>
 
 #include <list>
 #include <vector>
+
+#include <CoreAudio/CoreAudio.h>
+#include <IOKit/audio/IOAudioTypes.h>
 
 
 typedef std::vector<AudioStreamID> AudioStreamIdList;
@@ -56,5 +55,3 @@ protected:
   AudioStreamBasicDescription m_OriginalVirtualFormat;
   AudioStreamBasicDescription m_OriginalPhysicalFormat;
 };
-
-#endif

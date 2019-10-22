@@ -8,19 +8,19 @@
 
 #include "EpgDatabase.h"
 
-#include <cstdlib>
-
 #include "ServiceBroker.h"
-#include "addons/kodi-addon-dev-kit/include/kodi/xbmc_pvr_types.h"
 #include "dbwrappers/dataset.h"
+#include "pvr/epg/Epg.h"
+#include "pvr/epg/EpgInfoTag.h"
 #include "settings/AdvancedSettings.h"
 #include "settings/SettingsComponent.h"
 #include "threads/SingleLock.h"
 #include "utils/log.h"
-#include "utils/StringUtils.h"
 
-#include "pvr/epg/Epg.h"
-#include "pvr/epg/EpgInfoTag.h"
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <vector>
 
 using namespace dbiplus;
 using namespace PVR;
@@ -87,7 +87,7 @@ void CPVREpgDatabase::CreateTables(void)
         "iFirstAired     integer, "
         "iParentalRating integer, "
         "iStarRating     integer, "
-        "bNotify         bool, "
+        "bNotify         bool, " // Unused. Could be removed, but beware: sqlite does not support 'ALTER TABLE x DROP COLUMN y'.
         "iSeriesId       integer, "
         "iEpisodeId      integer, "
         "iEpisodePart    integer, "
@@ -158,7 +158,7 @@ bool CPVREpgDatabase::DeleteEpg(void)
   return bReturn;
 }
 
-bool CPVREpgDatabase::Delete(const CPVREpg &table)
+bool CPVREpgDatabase::Delete(const CPVREpg& table)
 {
   /* invalid channel */
   if (table.EpgID() <= 0)
@@ -174,7 +174,7 @@ bool CPVREpgDatabase::Delete(const CPVREpg &table)
   return DeleteValues("epg", filter);
 }
 
-bool CPVREpgDatabase::DeleteEpgEntries(const CDateTime &maxEndTime)
+bool CPVREpgDatabase::DeleteEpgEntries(const CDateTime& maxEndTime)
 {
   time_t iMaxEndTime;
   maxEndTime.GetAsTime(iMaxEndTime);
@@ -186,7 +186,7 @@ bool CPVREpgDatabase::DeleteEpgEntries(const CDateTime &maxEndTime)
   return DeleteValues("epgtags", filter);
 }
 
-bool CPVREpgDatabase::Delete(const CPVREpgInfoTag &tag)
+bool CPVREpgDatabase::Delete(const CPVREpgInfoTag& tag)
 {
   /* tag without a database ID was not persisted */
   if (tag.DatabaseID() <= 0)
@@ -211,8 +211,8 @@ std::vector<std::shared_ptr<CPVREpg>> CPVREpgDatabase::GetAll()
     {
       while (!m_pDS->eof())
       {
-        int iEpgID                 = m_pDS->fv("idEpg").get_asInt();
-        std::string strName        = m_pDS->fv("sName").get_asString().c_str();
+        int iEpgID = m_pDS->fv("idEpg").get_asInt();
+        std::string strName = m_pDS->fv("sName").get_asString().c_str();
         std::string strScraperName = m_pDS->fv("sScraperName").get_asString().c_str();
 
         result.emplace_back(new CPVREpg(iEpgID, strName, strScraperName));
@@ -229,7 +229,7 @@ std::vector<std::shared_ptr<CPVREpg>> CPVREpgDatabase::GetAll()
   return result;
 }
 
-std::vector<std::shared_ptr<CPVREpgInfoTag>> CPVREpgDatabase::Get(const CPVREpg &epg)
+std::vector<std::shared_ptr<CPVREpgInfoTag>> CPVREpgDatabase::Get(const CPVREpg& epg)
 {
   std::vector<std::shared_ptr<CPVREpgInfoTag>> result;
 
@@ -243,7 +243,7 @@ std::vector<std::shared_ptr<CPVREpgInfoTag>> CPVREpgDatabase::Get(const CPVREpg 
       {
         std::shared_ptr<CPVREpgInfoTag> newTag(new CPVREpgInfoTag());
 
-        time_t iStartTime, iEndTime, iFirstAired;
+        time_t iStartTime, iEndTime;
         iStartTime = (time_t) m_pDS->fv("iStartTime").get_asInt();
         CDateTime startTime(iStartTime);
         newTag->m_startTime = startTime;
@@ -252,37 +252,39 @@ std::vector<std::shared_ptr<CPVREpgInfoTag>> CPVREpgDatabase::Get(const CPVREpg 
         CDateTime endTime(iEndTime);
         newTag->m_endTime = endTime;
 
-        iFirstAired = (time_t) m_pDS->fv("iFirstAired").get_asInt();
-        CDateTime firstAired(iFirstAired);
-        newTag->m_firstAired = firstAired;
+        time_t iFirstAired = static_cast<time_t>(m_pDS->fv("iFirstAired").get_asInt());
+        if (iFirstAired > 0)
+        {
+          const CDateTime firstAired(iFirstAired);
+          newTag->m_firstAired = firstAired;
+        }
 
         int iBroadcastUID = m_pDS->fv("iBroadcastUid").get_asInt();
         // Compat: null value for broadcast uid changed from numerical -1 to 0 with PVR Addon API v4.0.0
         newTag->m_iUniqueBroadcastID = iBroadcastUID == -1 ? EPG_TAG_INVALID_UID : iBroadcastUID;
 
-        newTag->m_iDatabaseID        = m_pDS->fv("idBroadcast").get_asInt();
-        newTag->m_strTitle           = m_pDS->fv("sTitle").get_asString().c_str();
-        newTag->m_strPlotOutline     = m_pDS->fv("sPlotOutline").get_asString().c_str();
-        newTag->m_strPlot            = m_pDS->fv("sPlot").get_asString().c_str();
-        newTag->m_strOriginalTitle   = m_pDS->fv("sOriginalTitle").get_asString().c_str();
-        newTag->m_cast               = newTag->Tokenize(m_pDS->fv("sCast").get_asString());
-        newTag->m_directors          = newTag->Tokenize(m_pDS->fv("sDirector").get_asString());
-        newTag->m_writers            = newTag->Tokenize(m_pDS->fv("sWriter").get_asString());
-        newTag->m_iYear              = m_pDS->fv("iYear").get_asInt();
-        newTag->m_strIMDBNumber      = m_pDS->fv("sIMDBNumber").get_asString().c_str();
-        newTag->m_iGenreType         = m_pDS->fv("iGenreType").get_asInt();
-        newTag->m_iGenreSubType      = m_pDS->fv("iGenreSubType").get_asInt();
-        newTag->m_genre              = newTag->Tokenize(m_pDS->fv("sGenre").get_asString());
-        newTag->m_iParentalRating    = m_pDS->fv("iParentalRating").get_asInt();
-        newTag->m_iStarRating        = m_pDS->fv("iStarRating").get_asInt();
-        newTag->m_bNotify            = m_pDS->fv("bNotify").get_asBool();
-        newTag->m_iEpisodeNumber     = m_pDS->fv("iEpisodeId").get_asInt();
-        newTag->m_iEpisodePart       = m_pDS->fv("iEpisodePart").get_asInt();
-        newTag->m_strEpisodeName     = m_pDS->fv("sEpisodeName").get_asString().c_str();
-        newTag->m_iSeriesNumber      = m_pDS->fv("iSeriesId").get_asInt();
-        newTag->m_strIconPath        = m_pDS->fv("sIconPath").get_asString().c_str();
-        newTag->m_iFlags             = m_pDS->fv("iFlags").get_asInt();
-        newTag->m_strSeriesLink      = m_pDS->fv("sSeriesLink").get_asString().c_str();
+        newTag->m_iDatabaseID = m_pDS->fv("idBroadcast").get_asInt();
+        newTag->m_strTitle = m_pDS->fv("sTitle").get_asString().c_str();
+        newTag->m_strPlotOutline = m_pDS->fv("sPlotOutline").get_asString().c_str();
+        newTag->m_strPlot = m_pDS->fv("sPlot").get_asString().c_str();
+        newTag->m_strOriginalTitle = m_pDS->fv("sOriginalTitle").get_asString().c_str();
+        newTag->m_cast = newTag->Tokenize(m_pDS->fv("sCast").get_asString());
+        newTag->m_directors = newTag->Tokenize(m_pDS->fv("sDirector").get_asString());
+        newTag->m_writers = newTag->Tokenize(m_pDS->fv("sWriter").get_asString());
+        newTag->m_iYear = m_pDS->fv("iYear").get_asInt();
+        newTag->m_strIMDBNumber = m_pDS->fv("sIMDBNumber").get_asString().c_str();
+        newTag->m_iGenreType = m_pDS->fv("iGenreType").get_asInt();
+        newTag->m_iGenreSubType = m_pDS->fv("iGenreSubType").get_asInt();
+        newTag->m_genre = newTag->Tokenize(m_pDS->fv("sGenre").get_asString());
+        newTag->m_iParentalRating = m_pDS->fv("iParentalRating").get_asInt();
+        newTag->m_iStarRating = m_pDS->fv("iStarRating").get_asInt();
+        newTag->m_iEpisodeNumber = m_pDS->fv("iEpisodeId").get_asInt();
+        newTag->m_iEpisodePart = m_pDS->fv("iEpisodePart").get_asInt();
+        newTag->m_strEpisodeName = m_pDS->fv("sEpisodeName").get_asString().c_str();
+        newTag->m_iSeriesNumber = m_pDS->fv("iSeriesId").get_asInt();
+        newTag->m_strIconPath = m_pDS->fv("sIconPath").get_asString().c_str();
+        newTag->m_iFlags = m_pDS->fv("iFlags").get_asInt();
+        newTag->m_strSeriesLink = m_pDS->fv("sSeriesLink").get_asString().c_str();
 
         result.emplace_back(newTag);
 
@@ -298,7 +300,7 @@ std::vector<std::shared_ptr<CPVREpgInfoTag>> CPVREpgDatabase::Get(const CPVREpg 
   return result;
 }
 
-bool CPVREpgDatabase::GetLastEpgScanTime(int iEpgId, CDateTime *lastScan)
+bool CPVREpgDatabase::GetLastEpgScanTime(int iEpgId, CDateTime* lastScan)
 {
   bool bReturn = false;
 
@@ -328,7 +330,7 @@ bool CPVREpgDatabase::PersistLastEpgScanTime(int iEpgId, const CDateTime& lastSc
   return bQueueWrite ? QueueInsertQuery(strQuery) : ExecuteQuery(strQuery);
 }
 
-int CPVREpgDatabase::Persist(const CPVREpg &epg, bool bQueueWrite /* = false */)
+int CPVREpgDatabase::Persist(const CPVREpg& epg, bool bQueueWrite /* = false */)
 {
   int iReturn(-1);
   std::string strQuery;
@@ -355,7 +357,7 @@ int CPVREpgDatabase::Persist(const CPVREpg &epg, bool bQueueWrite /* = false */)
   return iReturn;
 }
 
-int CPVREpgDatabase::Persist(const CPVREpgInfoTag &tag, bool bSingleUpdate /* = true */)
+int CPVREpgDatabase::Persist(const CPVREpgInfoTag& tag, bool bSingleUpdate /* = true */)
 {
   int iReturn(-1);
 
@@ -365,16 +367,19 @@ int CPVREpgDatabase::Persist(const CPVREpgInfoTag &tag, bool bSingleUpdate /* = 
     return iReturn;
   }
 
-  time_t iStartTime, iEndTime, iFirstAired;
+  time_t iStartTime, iEndTime;
   tag.StartAsUTC().GetAsTime(iStartTime);
   tag.EndAsUTC().GetAsTime(iEndTime);
-  tag.FirstAiredAsUTC().GetAsTime(iFirstAired);
+
+  time_t iFirstAired = 0;
+  if (tag.FirstAiredAsUTC().IsValid())
+    tag.FirstAiredAsUTC().GetAsTime(iFirstAired);
 
   int iBroadcastId = tag.DatabaseID();
   std::string strQuery;
 
   /* Only store the genre string when needed */
-  std::string strGenre = (tag.GenreType() == EPG_GENRE_USE_STRING) ? tag.DeTokenize(tag.Genre()) : "";
+  std::string strGenre = (tag.GenreType() == EPG_GENRE_USE_STRING || tag.GenreSubType() == EPG_GENRE_USE_STRING) ? tag.DeTokenize(tag.Genre()) : "";
 
   CSingleLock lock(m_critSection);
 
@@ -390,7 +395,7 @@ int CPVREpgDatabase::Persist(const CPVREpgInfoTag &tag, bool bSingleUpdate /* = 
         tag.OriginalTitle().c_str(), tag.DeTokenize(tag.Cast()).c_str(), tag.DeTokenize(tag.Directors()).c_str(),
         tag.DeTokenize(tag.Writers()).c_str(), tag.Year(), tag.IMDBNumber().c_str(),
         tag.Icon().c_str(), tag.GenreType(), tag.GenreSubType(), strGenre.c_str(),
-        static_cast<unsigned int>(iFirstAired), tag.ParentalRating(), tag.StarRating(), tag.Notify(),
+        static_cast<unsigned int>(iFirstAired), tag.ParentalRating(), tag.StarRating(), false /* unused */,
         tag.SeriesNumber(), tag.EpisodeNumber(), tag.EpisodePart(), tag.EpisodeName().c_str(), tag.Flags(), tag.SeriesLink().c_str(),
         tag.UniqueBroadcastID());
   }
@@ -406,7 +411,7 @@ int CPVREpgDatabase::Persist(const CPVREpgInfoTag &tag, bool bSingleUpdate /* = 
         tag.OriginalTitle().c_str(), tag.DeTokenize(tag.Cast()).c_str(), tag.DeTokenize(tag.Directors()).c_str(),
         tag.DeTokenize(tag.Writers()).c_str(), tag.Year(), tag.IMDBNumber().c_str(),
         tag.Icon().c_str(), tag.GenreType(), tag.GenreSubType(), strGenre.c_str(),
-        static_cast<unsigned int>(iFirstAired), tag.ParentalRating(), tag.StarRating(), tag.Notify(),
+        static_cast<unsigned int>(iFirstAired), tag.ParentalRating(), tag.StarRating(), false /* unused */,
         tag.SeriesNumber(), tag.EpisodeNumber(), tag.EpisodePart(), tag.EpisodeName().c_str(), tag.Flags(), tag.SeriesLink().c_str(),
         tag.UniqueBroadcastID(), iBroadcastId);
   }
@@ -431,6 +436,6 @@ int CPVREpgDatabase::GetLastEPGId(void)
   std::string strQuery = PrepareSQL("SELECT MAX(idEpg) FROM epg");
   std::string strValue = GetSingleValue(strQuery);
   if (!strValue.empty())
-    return atoi(strValue.c_str());
+    return std::atoi(strValue.c_str());
   return 0;
 }

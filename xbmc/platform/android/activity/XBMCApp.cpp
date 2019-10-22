@@ -21,6 +21,7 @@
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 
+#include <androidjni/ActivityManager.h>
 #include <androidjni/ApplicationInfo.h>
 #include <androidjni/BitmapFactory.h>
 #include <androidjni/BroadcastReceiver.h>
@@ -359,6 +360,7 @@ void CXBMCApp::Initialize()
 {
   CServiceBroker::GetAnnouncementManager()->AddAnnouncer(CXBMCApp::get());
   runNativeOnUiThread(RegisterDisplayListener, nullptr);
+  m_activityManager.reset(new CJNIActivityManager(getSystemService(CJNIContext::ACTIVITY_SERVICE)));
 }
 
 void CXBMCApp::Deinitialize()
@@ -1099,7 +1101,7 @@ void CXBMCApp::onNewIntent(CJNIIntent intent)
       {
         std::vector<std::string> params;
         params.push_back(targeturl.Get());
-        params.push_back("return");
+        params.emplace_back("return");
         CApplicationMessenger::GetInstance().PostMsg(TMSG_GUI_ACTIVATE_WINDOW, WINDOW_VIDEO_NAV, 0, nullptr, "", params);
       }
       else if (targeturl.IsProtocol("musicdb")
@@ -1107,7 +1109,7 @@ void CXBMCApp::onNewIntent(CJNIIntent intent)
       {
         std::vector<std::string> params;
         params.push_back(targeturl.Get());
-        params.push_back("return");
+        params.emplace_back("return");
         CApplicationMessenger::GetInstance().PostMsg(TMSG_GUI_ACTIVATE_WINDOW, WINDOW_MUSIC_NAV, 0, nullptr, "", params);
       }
     }
@@ -1182,7 +1184,7 @@ int CXBMCApp::WaitForActivityResult(const CJNIIntent &intent, int requestCode, C
 void CXBMCApp::onVolumeChanged(int volume)
 {
   // System volume was used; Reset Kodi volume to 100% if it isn't, already
-  if (g_application.GetVolume(false) != 1.0)
+  if (g_application.GetVolumeRatio() != 1.0)
     CApplicationMessenger::GetInstance().PostMsg(TMSG_GUI_ACTION, WINDOW_INVALID, -1, static_cast<void*>(
                                                  new CAction(ACTION_VOLUME_SET, static_cast<float>(CXBMCApp::GetMaxSystemVolume()))));
 }
@@ -1241,6 +1243,27 @@ bool CXBMCApp::WaitVSync(unsigned int milliSeconds)
   return m_vsyncEvent.WaitMSec(milliSeconds);
 }
 
+bool CXBMCApp::GetMemoryInfo(long& availMem, long& totalMem)
+{
+  if (m_activityManager)
+  {
+    CJNIActivityManager::MemoryInfo info;
+    m_activityManager->getMemoryInfo(info);
+    if (xbmc_jnienv()->ExceptionCheck())
+    {
+      xbmc_jnienv()->ExceptionClear();
+      return false;
+    }
+
+    availMem = info.availMem();
+    totalMem = info.totalMem();
+
+    return true;
+  }
+
+  return false;
+}
+
 void CXBMCApp::SetupEnv()
 {
   setenv("KODI_ANDROID_SYSTEM_LIBS", CJNISystem::getProperty("java.library.path").c_str(), 0);
@@ -1282,7 +1305,7 @@ void CXBMCApp::SetupEnv()
     setenv("HOME", getenv("KODI_TEMP"), 0);
 
   std::string apkPath = getenv("KODI_ANDROID_APK");
-  apkPath += "/assets/python2.7";
+  apkPath += "/assets/python3.7";
   setenv("PYTHONHOME", apkPath.c_str(), 1);
   setenv("PYTHONPATH", "", 1);
   setenv("PYTHONOPTIMIZE","", 1);
@@ -1395,6 +1418,12 @@ void CXBMCApp::onDisplayAdded(int displayId)
 void CXBMCApp::onDisplayChanged(int displayId)
 {
   CLog::Log(LOGDEBUG, "CXBMCApp::%s: id: %d", __FUNCTION__, displayId);
+
+  // Update display modes
+  CWinSystemAndroid* winSystemAndroid = dynamic_cast<CWinSystemAndroid*>(CServiceBroker::GetWinSystem());
+  if (winSystemAndroid)
+    winSystemAndroid->UpdateDisplayModes();
+
   m_displayChangeEvent.Set();
   android_printf("%s: ", __PRETTY_FUNCTION__);
 }

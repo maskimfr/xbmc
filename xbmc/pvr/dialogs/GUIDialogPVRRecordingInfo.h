@@ -10,6 +10,9 @@
 
 #include "guilib/GUIDialog.h"
 
+class CFileItem;
+class CGUIMessage;
+
 namespace PVR
 {
   class CGUIDialogPVRRecordingInfo : public CGUIDialog
@@ -22,13 +25,14 @@ namespace PVR
     bool HasListItems() const override { return true; }
     CFileItemPtr GetCurrentListItem(int offset = 0) override;
 
-    void SetRecording(const CFileItem *item);
+    void SetRecording(const CFileItem* item);
 
     static void ShowFor(const CFileItemPtr& item);
 
   private:
-    bool OnClickButtonOK(CGUIMessage &message);
-    bool OnClickButtonPlay(CGUIMessage &message);
+    bool OnClickButtonFind(CGUIMessage& message);
+    bool OnClickButtonOK(CGUIMessage& message);
+    bool OnClickButtonPlay(CGUIMessage& message);
 
     CFileItemPtr m_recordItem;
   };

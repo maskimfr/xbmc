@@ -6,33 +6,40 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include <sys/resource.h>
-#include <signal.h>
-
-#include "ServiceBroker.h"
-#include "settings/AdvancedSettings.h"
-#include "settings/Settings.h"
-#include "FileItem.h"
-#include "music/tags/MusicInfoTag.h"
-#include "filesystem/SpecialProtocol.h"
-#include "playlists/PlayList.h"
-#include "messaging/ApplicationMessenger.h"
-#include "Application.h"
 #include "AppInboundProtocol.h"
-#include "input/touch/generic/GenericTouchActionHandler.h"
+#include "Application.h"
+#include "CompileInfo.h"
+#include "FileItem.h"
+#include "ServiceBroker.h"
+#include "Util.h"
+#include "filesystem/SpecialProtocol.h"
 #include "guilib/GUIControl.h"
 #include "input/Key.h"
-#include "windowing/osx/WinSystemIOS.h"
-#include "windowing/XBMC_events.h"
-#include "utils/log.h"
-#include "utils/TimeUtils.h"
-#include "Util.h"
+#include "input/touch/generic/GenericTouchActionHandler.h"
+#include "messaging/ApplicationMessenger.h"
+#include "music/tags/MusicInfoTag.h"
+#include "playlists/PlayList.h"
+#include "settings/AdvancedSettings.h"
+#include "settings/Settings.h"
+#include "settings/SettingsComponent.h"
+#include "settings/lib/ISettingCallback.h"
+#include "settings/lib/Setting.h"
 #include "threads/Event.h"
+#include "utils/StringUtils.h"
+#include "utils/TimeUtils.h"
+#include "utils/URIUtils.h"
+#include "utils/log.h"
+#include "windowing/XBMC_events.h"
+#include "windowing/ios/WinSystemIOS.h"
+
 #define id _id
 #include "TextureCache.h"
 #undef id
+
 #include <math.h>
-#include "platform/darwin/DarwinUtils.h"
+#include <signal.h>
+
+#include <sys/resource.h>
 
 using namespace KODI::MESSAGING;
 
@@ -49,15 +56,77 @@ using namespace KODI::MESSAGING;
 #import "XBMCController.h"
 #import "IOSScreenManager.h"
 #import "XBMCApplication.h"
-#import "XBMCDebugHelpers.h"
-#import "platform/darwin/AutoPool.h"
+#import "platform/darwin/NSLogDebugHelpers.h"
 
 XBMCController *g_xbmcController;
+
+class DebugLogSharingPresenter : ISettingCallback
+{
+public:
+  DebugLogSharingPresenter() : ISettingCallback()
+  {
+    CServiceBroker::GetSettingsComponent()->GetSettings()->RegisterCallback(
+        this, std::set<std::string>{CSettings::SETTING_DEBUG_SHARE_LOG});
+  }
+  virtual ~DebugLogSharingPresenter()
+  {
+    CServiceBroker::GetSettingsComponent()->GetSettings()->UnregisterCallback(this);
+  }
+
+  void OnSettingAction(std::shared_ptr<const CSetting> setting) override
+  {
+    if (!setting || setting->GetId() != CSettings::SETTING_DEBUG_SHARE_LOG)
+      return;
+
+    auto lowerAppName = std::string{CCompileInfo::GetAppName()};
+    StringUtils::ToLower(lowerAppName);
+    auto path = URIUtils::AddFileToFolder(CSpecialProtocol::TranslatePath("special://logpath/"),
+                                          lowerAppName + ".log");
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+      auto infoDic = NSBundle.mainBundle.infoDictionary;
+      auto subject = [NSString
+          stringWithFormat:@"iOS log - Kodi %@ %@", infoDic[@"CFBundleShortVersionString"],
+                           infoDic[static_cast<NSString*>(kCFBundleVersionKey)]];
+
+      auto activityVc = [[UIActivityViewController alloc]
+          initWithActivityItems:@[ [NSURL fileURLWithPath:@(path.c_str())] ]
+          applicationActivities:nil];
+      // hacky way to set email subject instead of providing UIActivityItemSource object
+      [activityVc setValue:subject forKey:@"subject"];
+
+      // make sure that the sharing sheet is displayed on iOS device's screen
+      auto iosDeviceScreen = UIScreen.mainScreen;
+      auto iosDeviceWindow = UIApplication.sharedApplication.keyWindow;
+      if (iosDeviceWindow.screen != iosDeviceScreen)
+      {
+        for (UIWindow* window in UIApplication.sharedApplication.windows)
+        {
+          if (window.screen == iosDeviceScreen)
+          {
+            iosDeviceWindow = window;
+            break;
+          }
+        }
+      }
+
+      auto rootVc = iosDeviceWindow.rootViewController;
+      [rootVc presentViewController:activityVc animated:YES completion:nil];
+
+      // iPad must present the sharing sheet in a popover
+      activityVc.popoverPresentationController.sourceView = rootVc.view;
+      activityVc.popoverPresentationController.sourceRect = CGRectMake(0.0, 0.0, 10.0, 10.0);
+    });
+  }
+};
 
 //--------------------------------------------------------------
 //
 
 @interface XBMCController ()
+{
+  std::unique_ptr<DebugLogSharingPresenter> m_debugLogSharingPresenter;
+}
 - (void)rescheduleNetworkAutoSuspend;
 @end
 
@@ -134,37 +203,9 @@ XBMCController *g_xbmcController;
 }
 // END OF UIKeyInput protocol
 
-// - iOS6 rotation API - will be called on iOS7 runtime!--------
-- (NSUInteger)supportedInterfaceOrientations
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations
 {
-  //mask defines available as of ios6 sdk
-  //return UIInterfaceOrientationMaskLandscape;
-  return (1 << UIInterfaceOrientationLandscapeLeft) | (1 << UIInterfaceOrientationLandscapeRight);
-}
-// - old rotation API will be called on iOS6 and lower - removed in iOS7
--(BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
-{
-  //on external screens somehow the logic is rotated by 90°
-  //so we have to do this with our supported orientations then aswell
-  if([[IOSScreenManager sharedInstance] isExternalScreen])
-  {
-    if(interfaceOrientation == UIInterfaceOrientationPortrait)
-    {
-      return YES;
-    }
-  }
-  else//internal screen
-  {
-    if(interfaceOrientation == UIInterfaceOrientationLandscapeLeft)
-    {
-      return YES;
-    }
-    else if(interfaceOrientation == UIInterfaceOrientationLandscapeRight)
-    {
-      return YES;
-    }
-  }
-  return NO;
+  return UIInterfaceOrientationMaskLandscape;
 }
 //--------------------------------------------------------------
 - (UIInterfaceOrientation) getOrientation
@@ -207,7 +248,6 @@ XBMCController *g_xbmcController;
   swipe.direction = direction;
   swipe.delegate = self;
   [m_glView addGestureRecognizer:swipe];
-  [swipe release];
 }
 //--------------------------------------------------------------
 - (void)addTapGesture:(NSUInteger)numTouches
@@ -220,7 +260,6 @@ XBMCController *g_xbmcController;
   tapGesture.numberOfTouchesRequired = numTouches;
 
   [m_glView addGestureRecognizer:tapGesture];
-  [tapGesture release];
 }
 //--------------------------------------------------------------
 - (void)createGestureRecognizers
@@ -243,7 +282,6 @@ XBMCController *g_xbmcController;
   singleFingerSingleLongTap.delaysTouchesBegan = NO;
   singleFingerSingleLongTap.delaysTouchesEnded = NO;
   [m_glView addGestureRecognizer:singleFingerSingleLongTap];
-  [singleFingerSingleLongTap release];
 
   //triple finger swipe left
   [self addSwipeGesture:UISwipeGestureRecognizerDirectionLeft numTouches:3];
@@ -288,7 +326,6 @@ XBMCController *g_xbmcController;
   pan.delaysTouchesBegan = NO;
   pan.maximumNumberOfTouches = 1;
   [m_glView addGestureRecognizer:pan];
-  [pan release];
 
   //for zoom gesture
   UIPinchGestureRecognizer *pinch = [[UIPinchGestureRecognizer alloc]
@@ -297,7 +334,6 @@ XBMCController *g_xbmcController;
   pinch.delaysTouchesBegan = NO;
   pinch.delegate = self;
   [m_glView addGestureRecognizer:pinch];
-  [pinch release];
 
   //for rotate gesture
   UIRotationGestureRecognizer *rotate = [[UIRotationGestureRecognizer alloc]
@@ -306,7 +342,6 @@ XBMCController *g_xbmcController;
   rotate.delaysTouchesBegan = NO;
   rotate.delegate = self;
   [m_glView addGestureRecognizer:rotate];
-  [rotate release];
 }
 //--------------------------------------------------------------
 - (void) activateKeyboard:(UIView *)view
@@ -567,22 +602,20 @@ XBMCController *g_xbmcController;
 - (void)loadView
 {
   [super loadView];
-  if (CDarwinUtils::GetIOSVersion() >= 8.0)
-  {
-    self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    self.view.autoresizesSubviews = YES;
+  self.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+  self.view.autoresizesSubviews = YES;
 
-    m_glView = [[IOSEAGLView alloc] initWithFrame:self.view.bounds withScreen:[UIScreen mainScreen]];
-    [[IOSScreenManager sharedInstance] setView:m_glView];
-    [m_glView setMultipleTouchEnabled:YES];
+  m_glView = [[IOSEAGLView alloc] initWithFrame:[self fullscreenSubviewFrame]
+                                     withScreen:UIScreen.mainScreen];
+  [[IOSScreenManager sharedInstance] setView:m_glView];
+  [m_glView setMultipleTouchEnabled:YES];
 
-    /* Check if screen is Retina */
-    screenScale = [m_glView getScreenScale:[UIScreen mainScreen]];
+  /* Check if screen is Retina */
+  screenScale = [m_glView getScreenScale:[UIScreen mainScreen]];
 
-    [self.view addSubview: m_glView];
+  [self.view addSubview: m_glView];
 
-    [self createGestureRecognizers];
-  }
+  [self createGestureRecognizers];
 }
 //--------------------------------------------------------------
 -(void)viewDidLoad
@@ -597,15 +630,11 @@ XBMCController *g_xbmcController;
   [self enableNetworkAutoSuspend:nil];
 
   [m_glView stopAnimation];
-  [m_glView release];
-  [m_window release];
 
   NSNotificationCenter *center;
   // take us off the default center for our app
   center = [NSNotificationCenter defaultCenter];
   [center removeObserver: self];
-
-  [super dealloc];
 }
 //--------------------------------------------------------------
 - (void)viewWillAppear:(BOOL)animated
@@ -660,7 +689,7 @@ XBMCController *g_xbmcController;
   // which would be shown whenever this UIResponder
   // becomes the first responder (which is always the case!)
   // caused by implementing the UIKeyInput protocol
-  return [[[UIView alloc] initWithFrame:CGRectZero] autorelease];
+  return [[UIView alloc] initWithFrame:CGRectZero];
 }
 //--------------------------------------------------------------
 - (BOOL) canBecomeFirstResponder
@@ -674,6 +703,20 @@ XBMCController *g_xbmcController;
   [self resignFirstResponder];
 
 	[super viewDidUnload];
+}
+//--------------------------------------------------------------
+- (CGRect)fullscreenSubviewFrame
+{
+  auto rect = self.view.bounds;
+  if (@available(ios 11.0, *))
+    return UIEdgeInsetsInsetRect(rect, m_window.safeAreaInsets);
+  else
+    return rect;
+}
+//--------------------------------------------------------------
+- (void)onXbmcAlive
+{
+  m_debugLogSharingPresenter = std::make_unique<DebugLogSharingPresenter>();
 }
 //--------------------------------------------------------------
 - (void) setFramebuffer
@@ -704,12 +747,6 @@ XBMCController *g_xbmcController;
   screensize = tmp;
   return screensize;
 }
-//--------------------------------------------------------------
-- (CGFloat) getScreenScale:(UIScreen *)screen
-{
-  return [m_glView getScreenScale:screen];
-}
-//--------------------------------------------------------------
 //--------------------------------------------------------------
 - (BOOL) recreateOnReselect
 {
@@ -925,10 +962,7 @@ XBMCController *g_xbmcController;
 - (void)setIOSNowPlayingInfo:(NSDictionary *)info
 {
   self.nowPlayingInfo = info;
-  // MPNowPlayingInfoCenter is an ios5+ class, following code will work on ios5 even if compiled by xcode3
-  Class NowPlayingInfoCenter = NSClassFromString(@"MPNowPlayingInfoCenter");
-  if (NowPlayingInfoCenter)
-    [[NowPlayingInfoCenter defaultCenter] setNowPlayingInfo:self.nowPlayingInfo];
+  [[MPNowPlayingInfoCenter defaultCenter] setNowPlayingInfo:self.nowPlayingInfo];
 }
 //--------------------------------------------------------------
 - (void)onPlay:(NSDictionary *)item
@@ -955,36 +989,31 @@ XBMCController *g_xbmcController;
   if (genres && genres.count > 0)
     [dict setObject:[genres componentsJoinedByString:@" "] forKey:MPMediaItemPropertyGenre];
 
-  if (NSClassFromString(@"MPNowPlayingInfoCenter"))
+  NSString *thumb = [item objectForKey:@"thumb"];
+  if (thumb && thumb.length > 0)
   {
-    NSString *thumb = [item objectForKey:@"thumb"];
-    if (thumb && thumb.length > 0)
+    UIImage *image = [UIImage imageWithContentsOfFile:thumb];
+    if (image)
     {
-      UIImage *image = [UIImage imageWithContentsOfFile:thumb];
-      if (image)
+      MPMediaItemArtwork *mArt = [[MPMediaItemArtwork alloc] initWithImage:image];
+      if (mArt)
       {
-        MPMediaItemArtwork *mArt = [[MPMediaItemArtwork alloc] initWithImage:image];
-        if (mArt)
-        {
-          [dict setObject:mArt forKey:MPMediaItemPropertyArtwork];
-          [mArt release];
-        }
+        [dict setObject:mArt forKey:MPMediaItemPropertyArtwork];
       }
     }
-    // these property keys are ios5+ only
-    NSNumber *elapsed = [item objectForKey:@"elapsed"];
-    if (elapsed)
-      [dict setObject:elapsed forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
-    NSNumber *speed = [item objectForKey:@"speed"];
-    if (speed)
-      [dict setObject:speed forKey:MPNowPlayingInfoPropertyPlaybackRate];
-    NSNumber *current = [item objectForKey:@"current"];
-    if (current)
-      [dict setObject:current forKey:MPNowPlayingInfoPropertyPlaybackQueueIndex];
-    NSNumber *total = [item objectForKey:@"total"];
-    if (total)
-      [dict setObject:total forKey:MPNowPlayingInfoPropertyPlaybackQueueCount];
   }
+  NSNumber *elapsed = [item objectForKey:@"elapsed"];
+  if (elapsed)
+    [dict setObject:elapsed forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
+  NSNumber *speed = [item objectForKey:@"speed"];
+  if (speed)
+    [dict setObject:speed forKey:MPNowPlayingInfoPropertyPlaybackRate];
+  NSNumber *current = [item objectForKey:@"current"];
+  if (current)
+    [dict setObject:current forKey:MPNowPlayingInfoPropertyPlaybackQueueIndex];
+  NSNumber *total = [item objectForKey:@"total"];
+  if (total)
+    [dict setObject:total forKey:MPNowPlayingInfoPropertyPlaybackQueueCount];
   /*
    other properties can be set:
    MPMediaItemPropertyAlbumTrackCount
@@ -999,7 +1028,6 @@ XBMCController *g_xbmcController;
    */
 
   [self setIOSNowPlayingInfo:dict];
-  [dict release];
 
   m_playbackState = IOS_PLAYBACK_PLAYING;
   [self disableNetworkAutoSuspend];
@@ -1008,18 +1036,15 @@ XBMCController *g_xbmcController;
 - (void)OnSpeedChanged:(NSDictionary *)item
 {
   PRINT_SIGNATURE();
-  if (NSClassFromString(@"MPNowPlayingInfoCenter"))
-  {
-    NSMutableDictionary *info = [self.nowPlayingInfo mutableCopy];
-    NSNumber *elapsed = [item objectForKey:@"elapsed"];
-    if (elapsed)
-      [info setObject:elapsed forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
-    NSNumber *speed = [item objectForKey:@"speed"];
-    if (speed)
-      [info setObject:speed forKey:MPNowPlayingInfoPropertyPlaybackRate];
+  NSMutableDictionary *info = [self.nowPlayingInfo mutableCopy];
+  NSNumber *elapsed = [item objectForKey:@"elapsed"];
+  if (elapsed)
+    [info setObject:elapsed forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
+  NSNumber *speed = [item objectForKey:@"speed"];
+  if (speed)
+    [info setObject:speed forKey:MPNowPlayingInfoPropertyPlaybackRate];
 
-    [self setIOSNowPlayingInfo:info];
-  }
+  [self setIOSNowPlayingInfo:info];
 }
 //--------------------------------------------------------------
 - (void)onPause:(NSDictionary *)item
@@ -1064,7 +1089,7 @@ XBMCController *g_xbmcController;
 //  LOG(@"userInfo: %@", [notification userInfo]);
 }
 
-- (void*) getEAGLContextObj
+- (CVEAGLContext)getEAGLContextObj
 {
   return [m_glView getCurrentEAGLContext];
 }

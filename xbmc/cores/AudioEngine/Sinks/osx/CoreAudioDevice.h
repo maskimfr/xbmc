@@ -8,13 +8,11 @@
 
 #pragma once
 
-#if defined(TARGET_DARWIN_OSX)
+#include "cores/AudioEngine/Sinks/osx/CoreAudioStream.h"
 
 #include <list>
 #include <string>
 #include <vector>
-
-#include "cores/AudioEngine/Sinks/osx/CoreAudioStream.h"
 
 #include <CoreAudio/CoreAudio.h>
 
@@ -93,5 +91,3 @@ protected:
                                              void*                               inClientData);
 
 };
-
-#endif

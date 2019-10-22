@@ -10,20 +10,20 @@
 
 #include "FileItem.h"
 #include "ServiceBroker.h"
+#include "pvr/recordings/PVRRecordingsPath.h"
+#include "pvr/timers/PVRTimersPath.h"
 #include "settings/Settings.h"
 #include "settings/SettingsComponent.h"
 #include "view/ViewStateSettings.h"
-
-#include "pvr/recordings/PVRRecordingsPath.h"
-#include "pvr/timers/PVRTimersPath.h"
 
 using namespace PVR;
 
 CGUIViewStateWindowPVRChannels::CGUIViewStateWindowPVRChannels(const int windowId, const CFileItemList& items) : CGUIViewStatePVR(windowId, items)
 {
-  AddSortMethod(SortByChannelNumber, 549, LABEL_MASKS("%L", "", "%L", ""));      // "Number"      : Filename, empty | Foldername, empty
-  AddSortMethod(SortByChannel,       551, LABEL_MASKS("%L", "", "%L", ""));      // "Name"        : Filename, empty | Foldername, empty
-  AddSortMethod(SortByLastPlayed,    568, LABEL_MASKS("%L", "%p", "%L", "%p"));  // "Last played" : Filename, LastPlayed | Foldername, LastPlayed
+  AddSortMethod(SortByChannelNumber,       549,   LABEL_MASKS("%L", "", "%L", ""));      // "Number"         : Filename, empty | Foldername, empty
+  AddSortMethod(SortByChannel,             551,   LABEL_MASKS("%L", "", "%L", ""));      // "Name"           : Filename, empty | Foldername, empty
+  AddSortMethod(SortByLastPlayed,          568,   LABEL_MASKS("%L", "%p", "%L", "%p"));  // "Last played"    : Filename, LastPlayed | Foldername, LastPlayed
+  AddSortMethod(SortByClientChannelOrder,  19315, LABEL_MASKS("%L", "", "%L", ""));      // "Backend number" : Filename, empty | Foldername, empty
 
   // Default sorting
   SetSortMethod(SortByChannelNumber);
@@ -64,9 +64,10 @@ bool CGUIViewStateWindowPVRRecordings::HideParentDirItems(void)
 
 CGUIViewStateWindowPVRGuide::CGUIViewStateWindowPVRGuide(const int windowId, const CFileItemList& items) : CGUIViewStatePVR(windowId, items)
 {
-  AddSortMethod(SortByChannelNumber,                           549, LABEL_MASKS("%L", "", "%L", ""));     // "Number"      : Filename, empty | Foldername, empty
-  AddSortMethod(SortByChannel,                                 551, LABEL_MASKS("%L", "", "%L", ""));     // "Name"        : Filename, empty | Foldername, empty
-  AddSortMethod(SortByLastPlayed,    SortAttributeIgnoreLabel, 568, LABEL_MASKS("%L", "%p", "%L", "%p")); // "Last played" : Filename, LastPlayed | Foldername, LastPlayed
+  AddSortMethod(SortByChannelNumber,                           549,   LABEL_MASKS("%L", "", "%L", ""));     // "Number"         : Filename, empty | Foldername, empty
+  AddSortMethod(SortByChannel,                                 551,   LABEL_MASKS("%L", "", "%L", ""));     // "Name"           : Filename, empty | Foldername, empty
+  AddSortMethod(SortByLastPlayed,    SortAttributeIgnoreLabel, 568,   LABEL_MASKS("%L", "%p", "%L", "%p")); // "Last played"    : Filename, LastPlayed | Foldername, LastPlayed
+  AddSortMethod(SortByClientChannelOrder,                      19315, LABEL_MASKS("%L", "", "%L", ""));     // "Backend number" : Filename, empty | Foldername, empty
 
   // Default sorting
   SetSortMethod(SortByChannelNumber);

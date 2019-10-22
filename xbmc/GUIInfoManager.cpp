@@ -8,12 +8,6 @@
 
 #include "GUIInfoManager.h"
 
-#include <algorithm>
-#include <cmath>
-#include <functional>
-#include <iterator>
-#include <memory>
-
 #include "Application.h"
 #include "FileItem.h"
 #include "ServiceBroker.h"
@@ -33,6 +27,12 @@
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/log.h"
+
+#include <algorithm>
+#include <cmath>
+#include <functional>
+#include <iterator>
+#include <memory>
 
 using namespace KODI::GUILIB;
 using namespace KODI::GUILIB::GUIINFO;
@@ -274,6 +274,26 @@ const infomap string_bools[] =   {{ "isempty",          STRING_IS_EMPTY },
 ///     @skinning_v17 **[New Boolean Condition]** \link Integer_IsLessOrEqual `Integer.IsLessOrEqual(info\,number)`\endlink
 ///     <p>
 ///   }
+///   \table_row3{   <b>`Integer.IsEven(info)`</b>,
+///                  \anchor Integer_IsEven
+///                  _boolean_,
+///     @return **True** if the value of the infolabel is odd
+///     @param info - infolabel
+///     @note **Example:** `Integer.IsEven(ListItem.CurrentItem)`
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \link Integer_IsEven `Integer.IsEven(info)`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Integer.IsOdd(info)`</b>,
+///                  \anchor Integer_IsOdd
+///                  _boolean_,
+///     @return **True** if the value of the infolabel is odd
+///     @param info - infolabel
+///     @note **Example:** `Integer.IsOdd(ListItem.CurrentItem)`
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \link Integer_IsOdd `Integer.IsOdd(info)`\endlink
+///     <p>
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
@@ -283,7 +303,9 @@ const infomap integer_bools[] =  {{ "isequal",          INTEGER_IS_EQUAL },
                                   { "isgreater",        INTEGER_GREATER_THAN },
                                   { "isgreaterorequal", INTEGER_GREATER_OR_EQUAL },
                                   { "isless",           INTEGER_LESS_THAN },
-                                  { "islessorequal",    INTEGER_LESS_OR_EQUAL }};
+                                  { "islessorequal",    INTEGER_LESS_OR_EQUAL },
+                                  { "iseven",           INTEGER_EVEN },
+                                  { "isodd",            INTEGER_ODD }};
 
 
 /// \page modules__infolabels_boolean_conditions
@@ -628,6 +650,24 @@ const infomap integer_bools[] =  {{ "isequal",          INTEGER_IS_EQUAL },
 ///     @skinning_v18 **[New Infolabel]** \link Player_Icon `Player.Icon`\endlink
 ///     <p>  
 ///   }
+///   \table_row3{   <b>`Player.Cutlist`</b>,
+///                  \anchor Player_Cutlist
+///                  _string_,
+///     @return The cutlist of the currently playing item as csv in the format start1\,end1\,start2\,end2\,...
+///     Tokens must have values in the range from 0.0 to 100.0. end token must be less or equal than start token.
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link Player_Cutlist `Player.Cutlist`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`Player.Chapters`</b>,
+///                  \anchor Player_Chapters
+///                  _string_,
+///     @return The chapters of the currently playing item as csv in the format start1\,end1\,start2\,end2\,...
+///     Tokens must have values in the range from 0.0 to 100.0. end token must be less or equal than start token.
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link Player_Chapters `Player.Chapters`\endlink
+///     <p>
+///   }
 const infomap player_labels[] =  {{ "hasmedia",         PLAYER_HAS_MEDIA },
                                   { "hasaudio",         PLAYER_HAS_AUDIO },
                                   { "hasvideo",         PLAYER_HAS_VIDEO },
@@ -678,7 +718,9 @@ const infomap player_labels[] =  {{ "hasmedia",         PLAYER_HAS_MEDIA },
                                   { "hasprograms",      PLAYER_HAS_PROGRAMS },
                                   { "hasresolutions",   PLAYER_HAS_RESOLUTIONS },
                                   { "frameadvance",     PLAYER_FRAMEADVANCE },
-                                  { "icon",             PLAYER_ICON }};
+                                  { "icon",             PLAYER_ICON },
+                                  { "cutlist",          PLAYER_CUTLIST },
+                                  { "chapters",         PLAYER_CHAPTERS }};
 
 /// \page modules__infolabels_boolean_conditions
 ///   \table_row3{   <b>`Player.Art(type)`</b>,
@@ -1664,6 +1706,15 @@ const infomap system_labels[] =  {{ "hasnetwork",       SYSTEM_ETHERNET_LINK_ACT
 ///     @param id - the addon id
 ///     <p>
 ///   }
+///   \table_row3{   <b>`System.AddonIsEnabled(id)`</b>,
+///                  \anchor AddonIsEnabled
+///                  _boolean_,
+///     @return **True** if the specified addon is enabled on the system..
+///     @param id - The addon Id
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \link System_AddonIsEnabled `System.AddonIsEnabled(id)`\endlink
+///     <p>
+///   }
 ///   \table_row3{   <b>`System.HasCoreId(id)`</b>,
 ///                  \anchor System_HasCoreId
 ///                  _boolean_,
@@ -1698,6 +1749,7 @@ const infomap system_param[] =   {{ "hasalarm",         SYSTEM_HAS_ALARM },
                                   { "hascoreid",        SYSTEM_HAS_CORE_ID },
                                   { "setting",          SYSTEM_SETTING },
                                   { "hasaddon",         SYSTEM_HAS_ADDON },
+                                  { "addonisenabled",   SYSTEM_ADDON_IS_ENABLED },
                                   { "coreusage",        SYSTEM_GET_CORE_USAGE }};
 
 /// \page modules__infolabels_boolean_conditions
@@ -3665,6 +3717,22 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///     @return **True** when the selected programme is being recorded (PVR).
 ///     <p>
 ///   }
+///   \table_row3{   <b>`ListItem.IsPlayable`</b>,
+///                  \anchor ListItem_IsPlayable
+///                  _boolean_,
+///     @return **True** when the selected programme can be played (PVR)
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \link ListItem_IsPlayable `ListItem.IsPlayable`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`ListItem.HasArchive`</b>,
+///                  \anchor ListItem_HasArchive
+///                  _boolean_,
+///     @return **True** when the selected channel has a server-side back buffer (PVR)
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \link ListItem_HasArchive `ListItem.HasArchive`\endlink
+///     <p>
+///   }
 ///   \table_row3{   <b>`ListItem.IsEncrypted`</b>,
 ///                  \anchor ListItem_IsEncrypted
 ///                  _boolean_,
@@ -4584,6 +4652,15 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///     item in a container.
 ///     <p>
 ///   }
+///   \table_row3{   <b>`ListItem.FileNameNoExtension`</b>,
+///                  \anchor ListItem_FileName_No_Extension
+///                  _string_,
+///     @return The filename without extension of the currently selected
+///     item in a container.
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link ListItem_FileName_No_Extension `ListItem.FileNameNoExtension`\endlink
+///     <p>
+///   }
 ///   \table_row3{   <b>`ListItem.Date`</b>,
 ///                  \anchor ListItem_Date
 ///                  _string_,
@@ -5216,6 +5293,22 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///     @skinning_v16 **[New Boolean Condition]** \ref ListItem_HasTimerSchedule "ListItem.HasTimerSchedule"
 ///     <p>
 ///   }
+///   \table_row3{   <b>`ListItem.HasReminder`</b>,
+///                  \anchor ListItem_HasReminder
+///                  _boolean_,
+///     @return **True** if the item has a reminder set (PVR).
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \ref ListItem_HasReminder "ListItem.HasReminder"
+///     <p>
+///   }
+///   \table_row3{   <b>`ListItem.HasReminderRule`</b>,
+///                  \anchor ListItem_ListItem.HasReminderRule
+///                  _boolean_,
+///     @return **True** if the item was scheduled by a reminder timer rule (PVR).
+///     <p><hr>
+///     @skinning_v19 **[New Boolean Condition]** \ref ListItem_HasReminderRule "ListItem.HasReminderRule"
+///     <p>
+///   }
 ///   \table_row3{   <b>`ListItem.HasRecording`</b>,
 ///                  \anchor ListItem_HasRecording
 ///                  _boolean_,
@@ -5626,6 +5719,22 @@ const infomap container_str[]  = {{ "property",         CONTAINER_PROPERTY },
 ///     @return The parental rating of the list item (PVR).
 ///     <p>
 ///   }
+///   \table_row3{   <b>`ListItem.CurrentItem`</b>,
+///                  \anchor ListItem_CurrentItem
+///                  _string_,
+///     @return The current index of the item in a container starting at 1.
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link ListItem_CurrentItem `ListItem.CurrentItem`\endlink
+///     <p>
+///   }
+///   \table_row3{   <b>`ListItem.IsNew`</b>,
+///                  \anchor ListItem_IsNew
+///                  _boolean_,
+///     @return **True** if the item is new (for example, a Live TV show that will be first aired).
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link ListItem_IsNew `ListItem.IsNew`\endlink
+///     <p>
+///   }
 /// \table_end
 ///
 /// -----------------------------------------------------------------------------
@@ -5648,6 +5757,7 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "filename",         LISTITEM_FILENAME },
                                   { "filenameandpath",  LISTITEM_FILENAME_AND_PATH },
                                   { "fileextension",    LISTITEM_FILE_EXTENSION },
+                                  { "filenamenoextension",  LISTITEM_FILENAME_NO_EXTENSION },
                                   { "date",             LISTITEM_DATE },
                                   { "datetime",         LISTITEM_DATETIME },
                                   { "size",             LISTITEM_SIZE },
@@ -5774,8 +5884,12 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "hasepg",           LISTITEM_HAS_EPG },
                                   { "hastimer",         LISTITEM_HASTIMER },
                                   { "hastimerschedule", LISTITEM_HASTIMERSCHEDULE },
+                                  { "hasreminder",      LISTITEM_HASREMINDER },
+                                  { "hasreminderrule",  LISTITEM_HASREMINDERRULE },
                                   { "hasrecording",     LISTITEM_HASRECORDING },
                                   { "isrecording",      LISTITEM_ISRECORDING },
+                                  { "isplayable",       LISTITEM_ISPLAYABLE },
+                                  { "hasarchive",       LISTITEM_HASARCHIVE },
                                   { "inprogress",       LISTITEM_INPROGRESS },
                                   { "isencrypted",      LISTITEM_ISENCRYPTED },
                                   { "progress",         LISTITEM_PROGRESS },
@@ -5811,7 +5925,9 @@ const infomap listitem_labels[]= {{ "thumb",            LISTITEM_THUMB },
                                   { "expirationtime",   LISTITEM_EXPIRATION_TIME },
                                   { "art",              LISTITEM_ART },
                                   { "property",         LISTITEM_PROPERTY },
-                                  { "parentalrating",   LISTITEM_PARENTAL_RATING }
+                                  { "parentalrating",   LISTITEM_PARENTAL_RATING },
+                                  { "currentitem",      LISTITEM_CURRENTITEM },
+                                  { "isnew",            LISTITEM_IS_NEW },
 };
 
 /// \page modules__infolabels_boolean_conditions
@@ -6692,6 +6808,14 @@ const infomap playlist[] =       {{ "length",           PLAYLIST_LENGTH },
 ///     the old `Player.Recording` infolabel.
 ///     <p>
 ///   }
+///   \table_row3{   <b>`PVR.IsPlayingActiveRecording`</b>,
+///                  \anchor PVR_IsPlayingActiveRecording
+///                  _boolean_,
+///     @return **True** if PVR is currently playing an in progress recording.
+///     <p><hr>
+///     @skinning_v19 **[New Infolabel]** \link PVR_IsPlayingActiveRecording `PVR.IsPlayingActiveRecording`\endlink
+///     <p>
+///   }
 ///   \table_row3{   <b>`PVR.TimeshiftProgressPlayPos`</b>,
 ///                  \anchor PVR_TimeshiftProgressPlayPos
 ///                  _integer_,
@@ -6812,6 +6936,7 @@ const infomap pvr[] =            {{ "isrecording",              PVR_IS_RECORDING
                                   { "channelnumberinput",         PVR_CHANNEL_NUMBER_INPUT },
                                   { "canrecordplayingchannel",    PVR_CAN_RECORD_PLAYING_CHANNEL },
                                   { "isrecordingplayingchannel",  PVR_IS_RECORDING_PLAYING_CHANNEL },
+                                  { "isplayingactiverecording",   PVR_IS_PLAYING_ACTIVE_RECORDING },
                                   { "timeshiftprogressplaypos",   PVR_TIMESHIFT_PROGRESS_PLAY_POS },
                                   { "timeshiftprogressepgstart",  PVR_TIMESHIFT_PROGRESS_EPG_START },
                                   { "timeshiftprogressepgend",    PVR_TIMESHIFT_PROGRESS_EPG_END },
@@ -9027,13 +9152,13 @@ int CGUIInfoManager::TranslateSingleString(const std::string &strCondition, bool
       {
         int position = atoi(info[1].param().c_str());
         int value = TranslateMusicPlayerString(info[2].name); // musicplayer.position(foo).bar
-        return AddMultiInfo(CGUIInfo(value, 0, position));
+        return AddMultiInfo(CGUIInfo(value, 2, position)); // 2 => absolute (0 used for not set)
       }
       else if (info[1].name == "offset")
       {
         int position = atoi(info[1].param().c_str());
         int value = TranslateMusicPlayerString(info[2].name); // musicplayer.offset(foo).bar
-        return AddMultiInfo(CGUIInfo(value, 1, position));
+        return AddMultiInfo(CGUIInfo(value, 1, position)); // 1 => relative
       }
     }
     else if (info[0].name == "container")
@@ -9360,6 +9485,8 @@ bool CGUIInfoManager::GetMultiInfoBool(const CGUIInfo &info, int contextWindow, 
       case INTEGER_GREATER_OR_EQUAL:
       case INTEGER_LESS_THAN:
       case INTEGER_LESS_OR_EQUAL:
+      case INTEGER_EVEN:
+      case INTEGER_ODD:
         {
           int integer = 0;
           if (!GetInt(integer, info.GetData1(), contextWindow, item))
@@ -9389,6 +9516,10 @@ bool CGUIInfoManager::GetMultiInfoBool(const CGUIInfo &info, int contextWindow, 
             bReturn = integer < info.GetData2();
           else if (condition == INTEGER_LESS_OR_EQUAL)
             bReturn = integer <= info.GetData2();
+          else if (condition == INTEGER_EVEN)
+            bReturn = integer % 2 == 0;
+          else if (condition == INTEGER_ODD)
+            bReturn = integer % 2 != 0;
         }
         break;
       case STRING_STARTS_WITH:
@@ -9527,9 +9658,6 @@ void CGUIInfoManager::SetCurrentItem(const CFileItem &item)
 
   m_infoProviders.InitCurrentItem(m_currentFile);
 
-  SetChanged();
-  NotifyObservers(ObservableMessageCurrentItem);
-  // @todo this should be handled by one of the observers above and forwarded
   CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Info, "xbmc", "OnChanged");
 }
 
@@ -9664,12 +9792,17 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
         return item->GetLabel2();
       case LISTITEM_FILENAME:
       case LISTITEM_FILE_EXTENSION:
+      case LISTITEM_FILENAME_NO_EXTENSION:
       {
         std::string strFile = URIUtils::GetFileName(item->GetPath());
         if (info.m_info == LISTITEM_FILE_EXTENSION)
         {
           std::string strExtension = URIUtils::GetExtension(strFile);
           return StringUtils::TrimLeft(strExtension, ".");
+        }
+        else if (info.m_info == LISTITEM_FILENAME_NO_EXTENSION)
+        {
+          URIUtils::RemoveExtension(strFile);
         }
         return strFile;
       }
@@ -9688,14 +9821,14 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
       case LISTITEM_PROGRAM_COUNT:
         return StringUtils::Format("%i", item->m_iprogramCount);
       case LISTITEM_ACTUAL_ICON:
-        return item->GetIconImage();
+        return item->GetArt("icon");
       case LISTITEM_ICON:
       {
         std::string strThumb = item->GetArt("thumb");
         if (strThumb.empty())
-          strThumb = item->GetIconImage();
+          strThumb = item->GetArt("icon");
         if (fallback)
-          *fallback = item->GetIconImage();
+          *fallback = item->GetArt("icon");
         return strThumb;
       }
       case LISTITEM_ART:
@@ -9745,6 +9878,8 @@ std::string CGUIInfoManager::GetMultiInfoItemLabel(const CFileItem *item, int co
           return item->m_dateTime.GetAsLocalizedDate(true);
         break;
       }
+      case LISTITEM_CURRENTITEM:
+        return std::to_string(item->GetCurrentItem());
     }
   }
 

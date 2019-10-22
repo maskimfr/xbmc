@@ -9,6 +9,8 @@
 #pragma once
 
 #include "DVDDemux.h"
+#include "DVDInputStreams/DVDInputStream.h"
+
 #include <map>
 #include <vector>
 
@@ -32,6 +34,7 @@ public:
   DemuxPacket* Read() override;
   bool SeekTime(double time, bool backwards = false, double* startpts = NULL) override;
   void SetSpeed(int iSpeed) override;
+  void FillBuffer(bool mode) override;
   CDemuxStream* GetStream(int iStreamId) const override;
   std::vector<CDemuxStream*> GetStreams() const override;
   int GetNrOfStreams() const override;

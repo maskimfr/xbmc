@@ -8,11 +8,11 @@
 
 #pragma once
 
+#include "addons/IAddon.h"
+
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "addons/IAddon.h"
 
 class CLanguageInvokerThread;
 class ILanguageInvocationHandler;
@@ -22,8 +22,7 @@ typedef enum {
   InvokerStateInitialized,
   InvokerStateRunning,
   InvokerStateStopping,
-  InvokerStateScriptDone,
-  InvokerStateExecutionDone,
+  InvokerStateDone,
   InvokerStateFailed
 } InvokerState;
 
@@ -44,7 +43,6 @@ public:
   InvokerState GetState() const { return m_state; }
   bool IsActive() const;
   bool IsRunning() const;
-  void Reset() { m_state = InvokerStateUninitialized; };
 
 protected:
   friend class CLanguageInvokerThread;

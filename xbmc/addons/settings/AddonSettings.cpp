@@ -6,10 +6,8 @@
  *  See LICENSES/README.md for more information.
  */
 
-#include <algorithm>
-#include <vector>
-
 #include "AddonSettings.h"
+
 #include "FileItem.h"
 #include "GUIInfoManager.h"
 #include "LangInfo.h"
@@ -22,19 +20,24 @@
 #include "guilib/LocalizeStrings.h"
 #include "messaging/ApplicationMessenger.h"
 #include "settings/SettingAddon.h"
+#include "settings/SettingConditions.h"
 #include "settings/SettingControl.h"
 #include "settings/SettingDateTime.h"
 #include "settings/SettingPath.h"
 #include "settings/lib/Setting.h"
+#include "settings/lib/SettingDefinitions.h"
 #include "settings/lib/SettingSection.h"
 #include "settings/lib/SettingsManager.h"
 #include "threads/SingleLock.h"
 #include "utils/FileExtensionProvider.h"
-#include "utils/log.h"
 #include "utils/StringUtils.h"
 #include "utils/URIUtils.h"
 #include "utils/XBMCTinyXML.h"
 #include "utils/XMLUtils.h"
+#include "utils/log.h"
+
+#include <algorithm>
+#include <vector>
 
 static const std::string OldSettingValuesSeparator = "|";
 
@@ -391,6 +394,13 @@ void CAddonSettings::InitializeControls()
 
 void CAddonSettings::InitializeConditions()
 {
+  CSettingConditions::Initialize();
+
+  // add basic conditions
+  const std::set<std::string>& simpleConditions = CSettingConditions::GetSimpleConditions();
+  for (const auto& condition : simpleConditions)
+    GetSettingsManager()->AddCondition(condition);
+
   GetSettingsManager()->AddDynamicCondition("InfoBool", InfoBool);
 }
 
@@ -941,7 +951,7 @@ SettingPtr CAddonSettings::InitializeFromOldSettingSelect(const std::string& set
 
       StringSettingOptions options;
       for (const auto& value : values)
-        options.push_back(std::make_pair(value, value));
+        options.push_back(StringSettingOption(value, value));
       settingString->SetOptions(options);
 
       setting = settingString;
@@ -1064,9 +1074,10 @@ SettingPtr CAddonSettings::InitializeFromOldSettingEnums(const std::string& sett
   const auto settingEntries = StringUtils::Split(XMLUtils::GetAttribute(settingElement, "entries"), OldSettingValuesSeparator);
 
   // process sort
+  bool sortAscending = false;
   std::string sort = XMLUtils::GetAttribute(settingElement, "sort");
   if (sort == "true" || sort == "yes")
-    std::sort(values.begin(), values.end(), sortstringbyname());
+    sortAscending = true;
 
   SettingPtr setting = nullptr;
   if (settingType == "enum")
@@ -1083,7 +1094,7 @@ SettingPtr CAddonSettings::InitializeFromOldSettingEnums(const std::string& sett
         if (settingEntries.size() > i)
           value = static_cast<int>(strtol(settingEntries[i].c_str(), nullptr, 0));
 
-        options.push_back(std::make_pair(label, value));
+        options.push_back(IntegerSettingOption(label, value));
       }
 
       settingInt->SetOptions(options);
@@ -1104,6 +1115,9 @@ SettingPtr CAddonSettings::InitializeFromOldSettingEnums(const std::string& sett
       settingInt->SetTranslatableOptions(options);
     }
 
+    if (sortAscending)
+      settingInt->SetOptionsSort(SettingOptionsSort::Ascending);
+
     // set the default value
     if (settingInt->FromString(defaultValue))
       settingInt->SetDefault(settingInt->GetValue());
@@ -1123,7 +1137,7 @@ SettingPtr CAddonSettings::InitializeFromOldSettingEnums(const std::string& sett
         if (settingEntries.size() > i)
           value = settingEntries[i];
 
-        options.push_back(std::make_pair(value, value));
+        options.push_back(StringSettingOption(value, value));
       }
 
       settingString->SetOptions(options);
@@ -1143,6 +1157,9 @@ SettingPtr CAddonSettings::InitializeFromOldSettingEnums(const std::string& sett
 
       settingString->SetTranslatableOptions(options);
     }
+
+    if (sortAscending)
+      settingString->SetOptionsSort(SettingOptionsSort::Ascending);
 
     // set the default value
     settingString->SetDefault(defaultValue);
@@ -1324,18 +1341,19 @@ bool CAddonSettings::ParseOldLabel(const TiXmlElement* element, const std::strin
   std::string labelString;
   element->QueryStringAttribute("label", &labelString);
 
+  bool parsed = !labelString.empty();
 
   // try to parse the label as a pure number, i.e. a localized string
-  char *endptr;
-  labelId = std::strtol(labelString.c_str(), &endptr, 10);
-  if (endptr == nullptr || *endptr == '\0')
-    return true;
-
-
-  // as a last resort use the setting's identifier as a label
-  bool parsed = !labelString.empty();
-  if (!parsed)
-    labelString = settingId;
+  if (parsed)
+  {
+    char* endptr;
+    labelId = std::strtol(labelString.c_str(), &endptr, 10);
+    if (endptr == nullptr || *endptr == '\0')
+      return true;
+  }
+  // make sure the label string is not empty
+  else
+    labelString = " ";
 
   labelId = m_unknownSettingLabelId;
   m_unknownSettingLabelId += 1;
@@ -1427,7 +1445,7 @@ bool CAddonSettings::ParseOldCondition(std::shared_ptr<const CSetting> setting, 
         {
           const auto& options = referencedSettingString->GetOptions();
           if (options.size() > valueIndex)
-            expression.m_value = options.at(valueIndex).second;
+            expression.m_value = options.at(valueIndex).value;
           break;
         }
 
@@ -1491,7 +1509,7 @@ bool CAddonSettings::ParseOldConditionExpression(std::string str, ConditionExpre
   return true;
 }
 
-void CAddonSettings::FileEnumSettingOptionsFiller(std::shared_ptr<const CSetting> setting, std::vector< std::pair<std::string, std::string> > &list, std::string &current, void *data)
+void CAddonSettings::FileEnumSettingOptionsFiller(std::shared_ptr<const CSetting> setting, std::vector<StringSettingOption> &list, std::string &current, void *data)
 {
   if (setting == nullptr)
     return;
@@ -1503,7 +1521,7 @@ void CAddonSettings::FileEnumSettingOptionsFiller(std::shared_ptr<const CSetting
   if (settingPath->GetSources().empty())
     return;
 
-  const std::string& masking = settingPath->GetMasking();
+  const std::string& masking = settingPath->GetMasking(CServiceBroker::GetFileExtensionProvider());
 
   // fetch the matching files/directories
   CFileItemList items;
@@ -1516,7 +1534,7 @@ void CAddonSettings::FileEnumSettingOptionsFiller(std::shared_ptr<const CSetting
     {
       if (settingPath->HideExtension())
         item->RemoveExtension();
-      list.push_back(std::make_pair(item->GetLabel(), item->GetLabel()));
+      list.emplace_back(item->GetLabel(), item->GetLabel());
     }
   }
 }
